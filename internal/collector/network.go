@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	gnet "github.com/shirou/gopsutil/v3/net"
 )
 
 // CollectNetwork returns the latest network view: per-interface live
@@ -63,15 +65,17 @@ func CollectNetwork(ctx context.Context, st *NetState, enablePublicIP bool) (Net
 }
 
 // ioCounters is the gopsutil seam. Tests can override it; production is
-// the real net.IOCountersWithContext. The gopsutil call already respects
+// the real gnet.IOCountersWithContext. The gopsutil call already respects
 // the supplied ctx's deadline, so no separate trampoline is needed.
-var ioCounters = func(ctx context.Context, all bool) ([]net.IOCounterStat, error) {
-	return net.IOCountersWithContext(ctx, all)
+// gopsutil/v3 v3.24.5 exports the byte-counter struct as IOCountersStat
+// (plural), not IOCounterStat.
+var ioCounters = func(ctx context.Context, all bool) ([]gnet.IOCountersStat, error) {
+	return gnet.IOCountersWithContext(ctx, all)
 }
 
 // netConnections is the gopsutil Connections seam.
-var netConnections = func(ctx context.Context, kind string) ([]net.ConnectionStat, error) {
-	return net.ConnectionsWithContext(ctx, kind)
+var netConnections = func(ctx context.Context, kind string) ([]gnet.ConnectionStat, error) {
+	return gnet.ConnectionsWithContext(ctx, kind)
 }
 
 // --- display helpers -------------------------------------------------------
@@ -136,7 +140,7 @@ func interfaceAddresses(name string) (ipv4, ipv6 string) {
 	return ipv4, ipv6
 }
 
-func hasEstablished(conns []net.ConnectionStat) bool {
+func hasEstablished(conns []gnet.ConnectionStat) bool {
 	for _, c := range conns {
 		if c.Status == "ESTABLISHED" {
 			return true

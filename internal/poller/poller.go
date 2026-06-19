@@ -69,8 +69,8 @@ func (p *Poller) tick(ctx context.Context) {
 		wg                          sync.WaitGroup
 		hwOut                       collector.Hardware
 		netOut                      collector.Network
-		contOut, contErr            collector.Container
-		hwErr, netErr               error
+		contOut                     collector.Container
+		hwErr, netErr, contErr      error
 	)
 
 	wg.Add(3)

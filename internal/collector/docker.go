@@ -2,10 +2,12 @@ package collector
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 )
@@ -30,7 +32,10 @@ func newDockerClient() (*dockerClient, error) {
 	} else {
 		opts = append(opts, client.WithHost("unix:///var/run/docker.sock"))
 	}
-	cli, err := client.NewClient(opts...)
+	// docker/docker v25.0.6 exposes the variadic Opt-taking constructor as
+	// NewClientWithOpts; earlier names (NewClient) returned in a later
+	// release require non-variadic options.
+	cli, err := client.NewClientWithOpts(opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -74,16 +79,24 @@ func CollectContainers(ctx context.Context) (Container, error) {
 	// even if stats calls hang we still show state/image/service info.
 	items := make([]ContainerSummary, 0, len(cs))
 	for _, c := range cs {
+		name := ""
+		// c.Names is []string in docker v25.0.6; the first entry starts
+		// with "/" which the template does not want. Trim defensively.
+		if len(c.Names) > 0 {
+			name = trimPrefix(c.Names[0], "/")
+		}
 		s := ContainerSummary{
-			ID:           shortID(c.ID),
-			Name:         trimPrefix(c.Names, "/"),
-			Image:        imageShort(c.Image),
-			State:        strings.ToLower(c.State),
-			Status:       c.Status,
-			Health:       healthFromStatus(c.Status, c.State),
-			RestartCount: c.RestartCount,
-			Project:      labelValue(c.Labels, "com.docker.compose.project"),
-			Ports:        formatPorts(c.Ports),
+			ID:      shortID(c.ID),
+			Name:    name,
+			Image:   imageShort(c.Image),
+			State:   strings.ToLower(c.State),
+			Status:  c.Status,
+			Health:  healthFromStatus(c.Status, c.State),
+			Project: labelValue(c.Labels, "com.docker.compose.project"),
+			Ports:   formatPorts(c.Ports),
+			// RestartCount is not on the list response in v25.0.6
+			// (only on inspect). Left at zero until we add an inspect
+			// round-trip, see TODO in follow-ups.
 		}
 		items = append(items, s)
 		switch s.State {
@@ -97,46 +110,41 @@ func CollectContainers(ctx context.Context) (Container, error) {
 		}
 	}
 
-	// Second pass: stats for running containers only.
-	runIDs := make([]string, 0, out.Running)
-	for _, it := range items {
-		if it.State == "running" {
-			runIDs = append(runIDs, it.ID)
-		}
-	}
-	if len(runIDs) == 0 {
-		out.Items = items
-		return out, nil
-	}
-
-	// ContainerStats with all IDs in one call. stream=false means one-shot.
-	stats, err := d.cli.ContainerStats(ctx, runIDs, false)
-	if err != nil {
-		// Log and return what we have – stats errors must not grey out the cards.
-		slog.Warn("docker stats fetch failed", slog.String("err", err.Error()))
-		out.Items = items
-		return out, nil
-	}
-
-	// Index by short id; Container entries from ContainerList return the
-	// same short id once truncated.
-	byID := make(map[string]container.StatsResponse, len(stats))
-	for _, st := range stats {
-		byID[shortID(st.ID)] = st
-	}
-
+	// Second pass: per-container stats. v25.0.6 ContainerStats returns a
+	// types.ContainerStats{Body io.ReadCloser, OSType} — the per-cpu /
+	// memory numbers are streamed as JSON inside Body and need to be
+	// decoded into container.StatsResponse. Issued as one round-trip per
+	// container because v25 has no batch stats API. We wrap the decode
+	// + metric writes in an inline closure so defer fires per iteration
+	// instead of accumulating N open Bodies until CollectContainers
+	// returns (defer-in-loop pitfall).
 	for i := range items {
 		if items[i].State != "running" {
 			continue
 		}
-		st, ok := byID[items[i].ID]
-		if !ok {
+		raw, err := d.cli.ContainerStats(ctx, items[i].ID, false)
+		if err != nil {
+			slog.Warn("docker stats fetch failed",
+				slog.String("container", items[i].ID),
+				slog.String("err", err.Error()))
 			continue
 		}
-		items[i].CPUPercent = round1(cpuPercentFromStats(st))
-		items[i].MemoryUsed = st.MemoryStats.Usage
-		if st.MemoryStats.Limit > 0 {
-			items[i].MemoryLimit = st.MemoryStats.Limit
+		if err := func() error {
+			defer raw.Body.Close()
+			var sr types.Stats
+			if err := json.NewDecoder(raw.Body).Decode(&sr); err != nil {
+				return err
+			}
+			items[i].CPUPercent = round1(cpuPercentFromStats(sr))
+			items[i].MemoryUsed = sr.MemoryStats.Usage
+			if sr.MemoryStats.Limit > 0 {
+				items[i].MemoryLimit = sr.MemoryStats.Limit
+			}
+			return nil
+		}(); err != nil {
+			slog.Warn("docker stats decode failed",
+				slog.String("container", items[i].ID),
+				slog.String("err", err.Error()))
 		}
 	}
 
@@ -202,7 +210,7 @@ func healthFromStatus(status, state string) string {
 
 // formatPorts produces a compact "0.0.0.0:80->80/tcp" string per port,
 // concatenated by space. Returns "" when no ports are published.
-func formatPorts(ports []container.Port) string {
+func formatPorts(ports []types.Port) string {
 	var b strings.Builder
 	for i, p := range ports {
 		if i > 0 {
@@ -217,12 +225,15 @@ func formatPorts(ports []container.Port) string {
 	return b.String()
 }
 
+
 // cpuPercentFromStats computes a normalised % CPU using the daemon-supplied
 // pre-totals (PreCPUUsage). These are populated by Docker when stream=false.
 // Fallback path returns 0 if the daemon hasn't delivered a baseline yet.
-func cpuPercentFromStats(st container.StatsResponse) float64 {
+func cpuPercentFromStats(st types.Stats) float64 {
 	totalDelta := float64(st.CPUStats.CPUUsage.TotalUsage - st.PreCPUStats.CPUUsage.TotalUsage)
-	systemDelta := float64(st.CPUStats.SystemCPUUsage - st.PreCPUStats.SystemCPUUsage)
+	// docker/docker v25.0.6 names the system-wide CPU counter `SystemUsage`
+	// (json: system_cpu_usage); older / newer code looked like SystemCPUUsage.
+	systemDelta := float64(st.CPUStats.SystemUsage - st.PreCPUStats.SystemUsage)
 	if systemDelta <= 0 || totalDelta < 0 {
 		return 0
 	}

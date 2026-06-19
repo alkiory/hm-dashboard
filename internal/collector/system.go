@@ -2,8 +2,6 @@ package collector
 
 import (
 	"context"
-	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 

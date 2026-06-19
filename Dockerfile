@@ -10,7 +10,18 @@
 # ============================================================================
 
 # --- Stage 1: build --------------------------------------------------------
-FROM golang:1.26-alpine AS build
+# Pin to Go 1.25-alpine to match the go.mod "go 1.25.0" directive, which
+# is auto-bumped from 1.26.4 because go.opentelemetry.io/contrib/.../otelhttp
+# v0.69.0 requires go >= 1.25.0. 1.25 is the lowest stable Go at the time
+# of the build; aligning the Dockerfile tag with the go directive avoids any
+# GOTOOLCHAIN auto-download surprises inside the container.
+#
+# Note: the original "undefined: errors.As/Is" failure was *not* due to a
+# broken toolchain; it was github.com/pkg/errors resolving to v0.8.1 through
+# docker/docker's go.mod, which predates that library's As/Is methods
+# (added in v0.9.0, Feb 2020). The fix lives in project go.mod (direct
+# require pkg/errors v0.9.1) and works on this image or any later one.
+FROM golang:1.25-alpine AS build
 
 # Build tools only — kept out of the runtime image.
 RUN apk add --no-cache git ca-certificates tzdata
