@@ -1,0 +1,50 @@
+{{/* Containers card body */}}
+
+<div class="containers">
+  {{if not .Container.Available}}
+    <p class="muted">Docker is unavailable. {{range .Errors}}{{.}}{{end}}</p>
+  {{else}}
+    <div class="containers__counts">
+      <span class="chip chip--ok">{{.Container.Running}} running</span>
+      <span class="chip chip--bad">{{.Container.Stopped}} stopped</span>
+      {{if gt .Container.Unhealthy 0}}<span class="chip chip--warn">{{.Container.Unhealthy}} unhealthy</span>{{end}}
+      <span class="chip chip--muted">{{.Container.Total}} total</span>
+    </div>
+
+    {{if .Container.Items}}
+    <div class="containers__list">
+      {{range .Container.Items}}
+      <div class="crow">
+        <div class="crow__left">
+          <span class="crow__name" title="{{.Image}}">{{truncate .Name 36}}</span>
+          <span class="crow__img muted">{{truncate .Image 28}}</span>
+        </div>
+        <div class="crow__right">
+          {{if isRunning .State}}
+            <span class="badge badge--ok">running</span>
+          {{else if isStopped .State}}
+            <span class="badge badge--bad">stopped</span>
+          {{else}}
+            <span class="badge badge--warn">{{.State}}</span>
+          {{end}}
+          {{if isHealthy .Health}}
+            <span class="badge badge--ok">healthy</span>
+          {{else if isUnhealthy .Health}}
+            <span class="badge badge--bad">unhealthy</span>
+          {{end}}
+          {{if isRunning .State}}
+            <span class="crow__stat">CPU <strong>{{pct .CPUPercent}}</strong></span>
+            <span class="crow__stat">MEM <strong>{{mib .MemoryUsed}}</strong>{{if gt .MemoryLimit 0}} <span class="muted">/ {{mib .MemoryLimit}}</span>{{end}}</span>
+          {{end}}
+          {{if gt .RestartCount 0}}
+            <span class="crow__stat" title="Restart count">↻ {{.RestartCount}}</span>
+          {{end}}
+        </div>
+      </div>
+      {{end}}
+    </div>
+    {{else}}
+      <p class="muted">No containers found.</p>
+    {{end}}
+  {{end}}
+</div>

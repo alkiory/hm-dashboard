@@ -1,0 +1,42 @@
+{{/* Hardware card body */}}
+
+<div class="hw">
+  <div class="hw__row">
+    <div class="meter">
+      <div class="meter__label">CPU</div>
+      <div class="meter__bar"><span class="meter__fill meter__fill--cpu" style="width: {{.Hardware.CPUPercent}}%"></span></div>
+      <div class="meter__val">{{pct .Hardware.CPUPercent}} <span class="muted">· {{.Hardware.CPUCores}}c</span></div>
+    </div>
+    <div class="meter">
+      <div class="meter__label">Memory</div>
+      <div class="meter__bar"><span class="meter__fill meter__fill--mem" style="width: {{.Hardware.MemoryPercent}}%"></span></div>
+      <div class="meter__val">{{pct .Hardware.MemoryPercent}} <span class="muted">· {{mib .Hardware.MemoryUsed}} / {{mib .Hardware.MemoryTotal}}</span></div>
+    </div>
+  </div>
+
+  {{if .Hardware.HasTemp}}
+  <div class="hw__row">
+    <div class="metric"><div class="metric__k">Temp</div><div class="metric__v">{{printf "%.1f" .Hardware.TemperatureC}}°C</div></div>
+  </div>
+  {{end}}
+
+  <div class="hw__row hw__row--grid">
+    <div class="metric"><div class="metric__k">Hostname</div><div class="metric__v">{{hostname .Hardware.Hostname}}</div></div>
+    <div class="metric"><div class="metric__k">OS</div><div class="metric__v muted">{{.Hardware.OS}}</div></div>
+    <div class="metric"><div class="metric__k">Uptime</div><div class="metric__v">{{uptime .Hardware.UptimeSec}}</div></div>
+    <div class="metric"><div class="metric__k">Swap</div><div class="metric__v">{{mib .Hardware.SwapUsed}} <span class="muted">/ {{mib .Hardware.SwapTotal}}</span></div></div>
+  </div>
+
+  {{if .Hardware.Disks}}
+  <h3 class="hw__h">Disks</h3>
+  <div class="disks">
+    {{range .Hardware.Disks}}
+    <div class="disk">
+      <div class="meter__label">{{.Path}} <span class="muted">{{.FSType}}</span></div>
+      <div class="meter__bar"><span class="meter__fill meter__fill--disk" style="width: {{.Percent}}%"></span></div>
+      <div class="meter__val">{{pct .Percent}} <span class="muted">· {{mib .Used}} / {{mib .Total}}</span></div>
+    </div>
+    {{end}}
+  </div>
+  {{end}}
+</div>

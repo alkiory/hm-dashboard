@@ -1,0 +1,41 @@
+{{/* Services card body. URL guard uses the hasPrefix template helper so that
+     arbitrary javascript: or file: URLs (which could be XSS) do not render as
+     <a> elements with a fetchable href. */}}
+
+<div class="services">
+  {{if .Errors}}
+    <details class="services__warn">
+      <summary>{{len .Errors}} scanner warning(s)</summary>
+      <ul>{{range .Errors}}<li><code>{{.}}</code></li>{{end}}</ul>
+    </details>
+  {{end}}
+
+  {{if .Services}}
+    <div class="services__grid">
+      {{range .Services}}
+      {{$isWeb := or (hasPrefix .URL "https:") (hasPrefix .URL "http:")}}
+      {{if and .URL $isWeb}}
+      <a class="svc" href="{{.URL}}" target="_blank" rel="noopener noreferrer">
+        <div class="svc__title">{{.Name}}{{if .Project}} <span class="muted">· {{.Project}}</span>{{end}}</div>
+        {{if .Description}}<div class="svc__desc">{{.Description}}</div>{{else}}<div class="svc__desc muted">no description</div>{{end}}
+        <div class="svc__meta">
+          <span class="svc__link">↗ {{.URL}}</span>
+          {{if .Ports}}<span class="svc__ports">📡 {{range $i, $p := .Ports}}{{if gt $i 0}} · {{end}}{{$p}}{{end}}</span>{{end}}
+        </div>
+      </a>
+      {{else}}
+      <div class="svc svc--nolink">
+        <div class="svc__title">{{.Name}}{{if .Project}} <span class="muted">· {{.Project}}</span>{{end}}</div>
+        {{if .Description}}<div class="svc__desc">{{.Description}}</div>{{else}}<div class="svc__desc muted">no description</div>{{end}}
+        <div class="svc__meta">
+          {{if .URL}}<span class="svc__link svc__link--muted">↗ {{.URL}}</span><span class="muted"> (non-web link, rendered as text)</span>{{end}}
+          {{if .Ports}}<span class="svc__ports">📡 {{range $i, $p := .Ports}}{{if gt $i 0}} · {{end}}{{$p}}{{end}}</span>{{end}}
+        </div>
+      </div>
+      {{end}}
+      {{end}}
+    </div>
+  {{else}}
+    <p class="muted">No services discovered. Check <code>COMPOSE_SCAN_PATH</code>.</p>
+  {{end}}
+</div>

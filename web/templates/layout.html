@@ -1,0 +1,100 @@
+{{define "layout"}}<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<meta name="robots" content="noindex,nofollow">
+<title>{{.Title}}</title>
+<link rel="stylesheet" href="/static/css/app.css">
+<!--
+  HTMX is served from a CDN by default. To air-gap: vendor htmx.min.js into
+  web/static/js/htmx.min.js and replace this tag with a local /static/js one.
+  See README → "Air-gapped deployments".
+-->
+<script src="https://unpkg.com/[email protected]/dist/htmx.min.js" defer></script>
+<script src="/static/js/app.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar__left">
+    <span class="brand">⬢ {{.Title}}</span>
+    <span class="meta" id="hostname-badge"></span>
+  </div>
+  <div class="topbar__right">
+    <span class="meta" id="last-updated">updated <span id="last-updated-value">priming…</span></span>
+    <button class="btn" id="theme-toggle" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+</header>
+
+<main class="grid">
+
+  <section class="card" id="card-hardware">
+    <header class="card__hdr">
+      <h2>Hardware</h2>
+      <span class="card__sub">refresh every {{.PollingSeconds}}s</span>
+    </header>
+    <div class="card__body" id="hardware-body"
+         hx-get="/api/cards/hardware"
+         hx-trigger="load delay:100ms, every {{.PollingSeconds}}s"
+         hx-swap="innerHTML"
+         hx-indicator=".pulse">
+      <span class="pulse" aria-hidden="true"></span>
+      <div class="card__placeholder">Loading…</div>
+    </div>
+  </section>
+
+  <section class="card" id="card-network">
+    <header class="card__hdr">
+      <h2>Network</h2>
+      <span class="card__sub">refresh every {{.PollingSeconds}}s</span>
+    </header>
+    <div class="card__body" id="network-body"
+         hx-get="/api/cards/network"
+         hx-trigger="load delay:100ms, every {{.PollingSeconds}}s"
+         hx-swap="innerHTML"
+         hx-indicator=".pulse">
+      <span class="pulse" aria-hidden="true"></span>
+      <div class="card__placeholder">Loading…</div>
+    </div>
+  </section>
+
+  <section class="card card--wide" id="card-containers">
+    <header class="card__hdr">
+      <h2>Containers</h2>
+      <span class="card__sub">refresh every {{.PollingSeconds}}s</span>
+    </header>
+    <div class="card__body" id="containers-body"
+         hx-get="/api/cards/containers"
+         hx-trigger="load delay:100ms, every {{.PollingSeconds}}s"
+         hx-swap="innerHTML"
+         hx-indicator=".pulse">
+      <span class="pulse" aria-hidden="true"></span>
+      <div class="card__placeholder">Loading…</div>
+    </div>
+  </section>
+
+  <section class="card card--wide" id="card-services">
+    <header class="card__hdr">
+      <h2>Services</h2>
+      <span class="card__sub">refresh every {{.PollingSeconds}}s</span>
+    </header>
+    <div class="card__body" id="services-body"
+         hx-get="/api/cards/services"
+         hx-trigger="load delay:100ms, every {{.PollingSeconds}}s"
+         hx-swap="innerHTML"
+         hx-indicator=".pulse">
+      <span class="pulse" aria-hidden="true"></span>
+      <div class="card__placeholder">Loading…</div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <span>Home Lab Dashboard · <a href="/healthz" rel="noopener">health</a> · auto-refresh every {{.PollingSeconds}}s</span>
+</footer>
+
+</body>
+</html>
+{{end}}
