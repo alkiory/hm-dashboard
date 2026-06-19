@@ -12,7 +12,7 @@ A self-hosted, single-binary homelab dashboard with:
 
 | Aspect                       | Implementation                                          |
 | ---------------------------- | ------------------------------------------------------- |
-| Backend                      | Go 1.22 (`go.mod`), `gopsutil/v3`, official `docker/docker` client, `yaml.v3` |
+| Backend                      | Go 1.26.4 (`go.mod`), `gopsutil/v3`, official `docker/docker` client, `yaml.v3` |
 | Frontend                     | HTMX 2 (CDN), ~50 lines vanilla JS, ~4 KB handcrafted CSS |
 | Persistence                  | Stateless; optional `dashboard-data` volume reserved for future SQLite |
 | Resource footprint (target)  | < 1 % CPU at idle, < 50 MB RSS                          |
@@ -77,7 +77,7 @@ The complete 10-step deliverable list from the original request:
 1. **Tech stack rationale** — Go + HTMX argued in `README.md` §1 (frameworks vs homelab needs).
 2. **Architecture diagram** — ASCII system-context in `README.md` §2 (NPM → Dashboard → socket-proxy → Docker).
 3. **Folder structure** — documented in `README.md` §3 and confirmed in §2 above.
-4. **Optimised multi-stage Dockerfile** — Build on `golang:1.22-alpine`, runtime on `alpine:3.20` as non-root uid 1000, `HEALTHCHECK` via curl against `/healthz`, `ldflags "-s -w -X main.version=…"`, optional UPX compression.
+4. **Optimised multi-stage Dockerfile** — Build on `golang:1.26.4`, runtime on `alpine:3.20` as non-root uid 1000, `HEALTHCHECK` via curl against `/healthz`, `ldflags "-s -w -X main.version=…"`, optional UPX compression.
 5. **Production-ready docker-compose.yml** — tecnativa socket-proxy sidecar with `POST=0 DELETE=0 EXEC=0 EVENTS=0 IMAGES=0 VOLUMES=0 NETWORKS=0 CONTAINERS=1`; `max-size:10m max-file:3` log rotation; `/proc` + `/sys` mounted `:ro`; named bridge network `hld-internal`; `dashboard-data` volume reserved.
 6. **Go backend (Docker SDK)** — `internal/collector/docker.go` uses `github.com/docker/docker/client`, ContainerList + ContainerStats (one-shot, `stream=false`); falls back without restart if daemon unreachable.
 7. **HTML templates + HTMX** — Five partial templates total (1 layout + 4 cards) using `{{define "layout"}}` for the page wrapper. HTMX triggers `"load delay:100ms, every Xs"` per card body, `innerHTML` swap, `.pulse` indicator element.
@@ -102,7 +102,7 @@ The complete 10-step deliverable list from the original request:
 | Modern, clean, responsive UI                              | CSS custom properties + grid auto-fit; mobile breakpoint at 720 px | ✅      |
 | Dark mode toggle                                          | data-theme attribute + localStorage + prefers-color-scheme fallback | ✅      |
 | SQLite for any local config (stateless preferred)         | Stateless; volume reserved                                         | ✅      |
-| Multi-stage Production Dockerfile                          | Yes (`golang:1.22-alpine` → `alpine:3.20`)                         | ✅      |
+| Multi-stage Production Dockerfile                          | Yes (`golang:1.26.4` → `alpine:3.20`)                         | ✅      |
 | Configuration via env vars                                | `PORT`, `POLLING_INTERVAL`, `COMPOSE_SCAN_PATH`, `LOG_LEVEL`, `ENABLE_PUBLIC_IP`, `DASHBOARD_TITLE`, `DOCKER_HOST` | ✅ |
 | Native Docker healthcheck in compose                      | `HEALTHCHECK` curl `/healthz` (30 s interval, 3 retries, 15 s start) | ✅      |
 | Log rotation at Docker level                              | `max-size: 10m`, `max-file: 3` json-file driver                  | ✅      |

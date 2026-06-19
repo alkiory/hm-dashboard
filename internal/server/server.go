@@ -1,5 +1,5 @@
 // Package server wires HTTP handlers to the snapshot store and the
-// embedded web assets. We deliberately stay on net/http — Go 1.22's
+// embedded web assets. We deliberately stay on net/http — Go 1.26.4's
 // pattern-aware ServeMux is good enough and avoids importing gin/chi/etc.
 package server
 
