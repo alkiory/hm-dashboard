@@ -40,7 +40,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
-      - hld-internal
+      - npm_network
     # No healthcheck; the socket is the source of truth and the proxy is
     # stateless.
     logging: &log-default
@@ -65,7 +65,7 @@ services:
 
     # Tell the app to talk to the proxy instead of the real socket.
     environment:
-      - PORT=8080
+      - PORT=3001
       - POLLING_INTERVAL=15
       - LOG_LEVEL=info
       - ENABLE_PUBLIC_IP=true
@@ -87,7 +87,7 @@ services:
       - dashboard-data:/data
 
     networks:
-      - hld-internal
+      - npm_network
 
     labels:
       com.docker.compose.project: homelab-dashboard
@@ -101,12 +101,9 @@ volumes:
   dashboard-data:
 
 networks:
-  hld-internal:
-    driver: bridge
-    name: hld-internal
-    internal: false  # NPM publishes us to the web; keep egress available
-                     # only to the socket-proxy and NPM's upstream bridge.
-
+  npm_network:
+    name: npm_network
+    external: true
 # ----------------------------------------------------------------------------
 #  Quick reference
 # ----------------------------------------------------------------------------
