@@ -38,7 +38,7 @@ RUN go build \
     -trimpath \
     -ldflags "-s -w -X main.version=${VERSION}" \
     -tags netgo,osusergo \
-    -o /out/dashboard ./...
+    -o /out/dashboard .
 
 # Compress with UPX if installed at build time. UPX is optional; failure is
 # gracefully ignored so the build never breaks for missing tooling.
