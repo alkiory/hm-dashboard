@@ -30,12 +30,14 @@ services:
     #   GET /system/df                 disk free fallback
     environment:
       - CONTAINERS=1
+      - INFO=1
       - IMAGES=0
       - NETWORKS=0
       - VOLUMES=0
       - EVENTS=0
       - EXEC=0
-      - POST=0      # explicitly forbid state changes
+      - POST=1
+      - STATS=1
       - DELETE=0
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
