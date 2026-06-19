@@ -88,6 +88,12 @@ services:
 
     networks:
       - npm_network
+    # ESTO para forzar que el healthcheck use una ruta que sí existe:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
     labels:
       com.docker.compose.project: homelab-dashboard
