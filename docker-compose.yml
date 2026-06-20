@@ -14,14 +14,14 @@ services:
       - npm_network
 
   dashboard:
-    image: ghcr.io/alkiory/homelab-dashboard:latest
+    build: .                     # <-- CRÍTICO: Cambiado 'image: ghcr.io...' por 'build: .'
     container_name: home-lab-dashboard
     restart: unless-stopped
     security_opt:
       - apparmor:unconfined
     environment:
-      - PORT=3001                 # <-- Le dice al binario de Go que escuche en el 3001
-      - POLLING_INTERVAL=15s
+      - PORT=8080                 # <-- Dejamos el 8080 interno (no colisiona porque no se publica en el host)
+      - POLLING_INTERVAL=30s      # <-- 30 segundos relaja la carga y elimina el 'context deadline exceeded'
       - COMPOSE_SCAN_PATH=/srv
       - DOCKER_HOST=tcp://hld-docker-proxy:2375
     volumes:
@@ -32,10 +32,9 @@ services:
     networks:
       - npm_network
     healthcheck:
-      # Usamos el puerto 3001 de manera dinámica para la comprobación de salud
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
-      interval: 15s
-      timeout: 5s
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"] # <-- Apunta al 8080 interno
+      interval: 30s
+      timeout: 10s
       retries: 3
 
 volumes:
