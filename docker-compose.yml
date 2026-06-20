@@ -20,7 +20,7 @@ services:
     security_opt:
       - apparmor:unconfined
     environment:
-      - PORT=8080                 # <-- Dejamos el 8080 interno (no colisiona porque no se publica en el host)
+      - PORT=3001                 # <-- Dejamos el 3001 interno (no colisiona porque no se publica en el host)
       - POLLING_INTERVAL=30s      # <-- 30 segundos relaja la carga y elimina el 'context deadline exceeded'
       - COMPOSE_SCAN_PATH=/srv
       - DOCKER_HOST=tcp://hld-docker-proxy:2375
@@ -32,7 +32,7 @@ services:
     networks:
       - npm_network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"] # <-- Apunta al 8080 interno
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"] # <-- Apunta al 3001 interno
       interval: 30s
       timeout: 10s
       retries: 3
