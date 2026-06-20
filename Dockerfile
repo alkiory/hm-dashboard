@@ -60,8 +60,6 @@ RUN apk add --no-cache upx 2>/dev/null \
 # --- Stage 2: runtime ------------------------------------------------------
 FROM alpine:3.20 AS runtime
 
-# tzdata is required for slog + http handlers that respect location.
-# ca-certificates is needed for HTTPS calls to public IP services.
 RUN apk add --no-cache ca-certificates tzdata curl \
  && update-ca-certificates \
  && addgroup -S -g 1000 hld \
@@ -71,7 +69,7 @@ WORKDIR /app
 
 COPY --from=build /out/dashboard /app/dashboard
 
-# Runtime config — overridable via docker-compose env block.
+# Hacemos que el puerto por defecto sea el 3001 (que coincide con tu config.go)
 ENV PORT=3001 \
     POLLING_INTERVAL=15s \
     LOG_LEVEL=info \
@@ -79,6 +77,7 @@ ENV PORT=3001 \
 
 USER hld
 
+# Exponemos el puerto usando la variable de entorno
 EXPOSE 3001
 
 # In-app health endpoint — Docker's HEALTHCHECK uses the same endpoint so

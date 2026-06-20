@@ -45,7 +45,7 @@ production monitoring stack probably already consumes.
    ┌──── NPM (TLS) ─────────►  Nginx Proxy Manager  │
    │     └──── HTTPS ────────►  on :443             │
    │                          └─────────┬────────────┘
-   │                                    │ HTTP :8080
+   │                                    │ HTTP :3001
    │                                    ▼
    │                          ┌──────────────────────┐
    │                          │   Home Lab Dashboard │
@@ -149,7 +149,7 @@ canonical list.
 
 | Variable            | Default         | Purpose                                    |
 | ------------------- | --------------- | ------------------------------------------ |
-| `PORT`              | `8080`          | Internal HTTP port (NPM terminates TLS)    |
+| `PORT`              | `3001`          | Internal HTTP port (NPM terminates TLS)    |
 | `POLLING_INTERVAL`  | `15`            | Seconds between snapshot refreshes         |
 | `LOG_LEVEL`         | `info`          | `debug` \| `info` \| `warn` \| `error`     |
 | `COMPOSE_SCAN_PATH` | (unset)         | Comma-separated dirs to walk for compose   |
@@ -174,7 +174,7 @@ docker compose up -d
 # 3. Add to Nginx Proxy Manager
 #    - Domain:       home.example.com
 #    - Scheme:       http
-#    - Forward:      home-lab-dashboard:8080   (or <host-ip>:8080)
+#    - Forward:      home-lab-dashboard:3001   (or <host-ip>:3001)
 #    - Cache:        disabled
 #    - Access list:  your IP only (optional)
 #    - SSL:          "Request a new SSL Certificate" (Let's Encrypt)
@@ -203,7 +203,7 @@ SSL lives at NPM. The dashboard serves plain internal HTTP.
    - **Domain Names:** `home.example.com`
    - **Scheme:** `http`
    - **Forward Hostname/IP:** the IP of your Docker host
-   - **Forward Port:** `8080`
+   - **Forward Port:** `3001`
    - **Websockets Support:** *off* (we're HTMX-poll, not push)
    - **SSL Tab:** "Request a new SSL Certificate" → enable
      "Force SSL" + "HTTP/2" + "HSTS"
@@ -212,7 +212,7 @@ SSL lives at NPM. The dashboard serves plain internal HTTP.
 
 When NPM publishes its container on a custom bridge network, add the bridge
 network to both `npm_default` and `hld-internal` so NPM can resolve
-`home-lab-dashboard`. **The dashboard itself only needs port 8080 exposed
+`home-lab-dashboard`. **The dashboard itself only needs port 3001 exposed
 on its internal Docker network**.
 
 ---

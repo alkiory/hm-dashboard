@@ -17,15 +17,12 @@ services:
     image: ghcr.io/alkiory/homelab-dashboard:latest
     container_name: home-lab-dashboard
     restart: unless-stopped
-    read_only: false
-    # 1. EVITA EL ERROR DE APPARArmor/READ-ONLY AL TRABAJAR INTERNAMENTE:
     security_opt:
       - apparmor:unconfined
     environment:
-      - PORT=3001
+      - PORT=3001                 # <-- Le dice al binario de Go que escuche en el 3001
       - POLLING_INTERVAL=15s
       - COMPOSE_SCAN_PATH=/srv
-      # 2. CORRECCIÓN CRÍTICA: Cambiar tcp://docker-proxy por tcp://hld-docker-proxy
       - DOCKER_HOST=tcp://hld-docker-proxy:2375
     volumes:
       - /proc:/proc:ro
@@ -34,11 +31,11 @@ services:
       - dashboard-data:/data
     networks:
       - npm_network
-    # 3. ACTUALIZA EL HEALTHCHECK AL PUERTO REAL (3001)
     healthcheck:
+      # Usamos el puerto 3001 de manera dinámica para la comprobación de salud
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 15s
+      timeout: 5s
       retries: 3
 
 volumes:

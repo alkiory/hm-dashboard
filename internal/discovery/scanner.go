@@ -225,8 +225,8 @@ func applyLabel(labels []string, desc, url, k, v string) ([]string, string, stri
 }
 
 // normalisePorts flattens the multiple compose port representations into a
-// uniform list of strings. Compose accepts both "8080:80" and the long
-// form {target:80,published:8080,protocol:tcp}. We render both as the
+// uniform list of strings. Compose accepts both "3001:80" and the long
+// form {target:80,published:3001,protocol:tcp}. We render both as the
 // short "host:container/proto" string.
 func normalisePorts(in []any) []string {
 	out := make([]string, 0, len(in))
@@ -246,7 +246,7 @@ func normalisePorts(in []any) []string {
 }
 
 func shortPort(s string) string {
-	// "8080:80/tcp" -> "8080:80/tcp"; "8080" -> "8080/tcp".
+	// "3001:80/tcp" -> "3001:80/tcp"; "3001" -> "3001/tcp".
 	if strings.Contains(s, "/") {
 		return s
 	}

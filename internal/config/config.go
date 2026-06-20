@@ -25,7 +25,7 @@ type Config struct {
 // Invalid numeric or duration values log a warning and use the default.
 func FromEnv() Config {
 	c := Config{
-		Port:            8080,
+		Port:            3001,
 		PollingInterval: 15 * time.Second,
 		DashboardTitle:  "Home Lab Dashboard",
 		EnablePublicIP:  true,

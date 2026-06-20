@@ -20,7 +20,7 @@ A self-hosted, single-binary homelab dashboard with:
 | Polling                      | Single background goroutine, lock-free HTTP path        |
 | Templating                   | `html/template` parsed once, cached under a mutex       |
 | Security                     | tecnativa socket-proxy sidecar (read-only Docker API), `/proc` + `/sys` mounted `:ro` |
-| Reverse proxy                | Nginx Proxy Manager (TLS upstream, plain HTTP 8080 down) |
+| Reverse proxy                | Nginx Proxy Manager (TLS upstream, plain HTTP 3001 down) |
 
 **Total source: 2,048 lines of Go across 16 files**, plus 5 HTML templates, 1 CSS, 1 vanilla JS.
 
@@ -106,7 +106,7 @@ The complete 10-step deliverable list from the original request:
 | Configuration via env vars                                | `PORT`, `POLLING_INTERVAL`, `COMPOSE_SCAN_PATH`, `LOG_LEVEL`, `ENABLE_PUBLIC_IP`, `DASHBOARD_TITLE`, `DOCKER_HOST` | ✅ |
 | Native Docker healthcheck in compose                      | `HEALTHCHECK` curl `/healthz` (30 s interval, 3 retries, 15 s start) | ✅      |
 | Log rotation at Docker level                              | `max-size: 10m`, `max-file: 3` json-file driver                  | ✅      |
-| Run behind NPM, internal HTTP only                        | Internal port 8080; no TLS in app; relies on NPM                  | ✅      |
+| Run behind NPM, internal HTTP only                        | Internal port 3001; no TLS in app; relies on NPM                  | ✅      |
 
 ---
 
@@ -158,21 +158,21 @@ docker compose ps
 
 **Expected:**
 - `dashboard` and `hld-docker-proxy` containers in `running` state.
-- `docker compose logs -f dashboard` shows `slog.Info("dashboard up", ...)` with `port=8080`.
+- `docker compose logs -f dashboard` shows `slog.Info("dashboard up", ...)` with `port=3001`.
 - No SIGSEGV / panics.
 
 #### **[run]** Step 5 — Verify liveness & readiness
 
 ```bash
-curl -fsS http://localhost:8080/healthz   # → ok
-curl -fsS http://localhost:8080/readyz    # (after first poll) → ready
+curl -fsS http://localhost:3001/healthz   # → ok
+curl -fsS http://localhost:3001/readyz    # (after first poll) → ready
 ```
 
 **Expected:** both endpoints return 200 within 30 s of startup. `/readyz` returns `503 priming` for the first poll cycle.
 
 #### **[run]** Step 6 — Verify the four cards render and refresh
 
-Open http://localhost:8080/ in a browser. After 15 s:
+Open http://localhost:3001/ in a browser. After 15 s:
 
 | Card           | Acceptable first paint          | Acceptable polled value (15 s)                |
 | -------------- | ------------------------------- | --------------------------------------------- |
@@ -264,7 +264,7 @@ In NPM UI: **Hosts → Proxy Hosts → Add Proxy Host**:
 - **Domain**: `home.example.com`
 - **Scheme**: `http`
 - **Forward Hostname/IP**: `<docker-host-ip>`
-- **Forward Port**: `8080`
+- **Forward Port**: `3001`
 - **Websockets**: off
 - **SSL**: "Request a new SSL Certificate", enable **Force SSL**, **HTTP/2**, **HSTS**
 
@@ -275,7 +275,7 @@ curl -fsSI https://home.example.com/healthz | head -1   # → HTTP/2 200
 curl -fsSI http://home.example.com/                     # → 301 to https
 ```
 
-The dashboard only sees traffic at `8080`; it does not handle TLS.
+The dashboard only sees traffic at `3001`; it does not handle TLS.
 
 ### 5.5 Footprint validation
 
@@ -309,7 +309,7 @@ docker inspect --format '{{.HostConfig.LogConfig}}' home-lab-dashboard
 
 ```bash
 docker stop hld-docker-proxy    # simulate Docker-API outage
-docker exec home-lab-dashboard wget -q -O- http://127.0.0.1:8080/healthz   # → ok
+docker exec home-lab-dashboard wget -q -O- http://127.0.0.1:3001/healthz   # → ok
 ```
 
 **Expected:** `/healthz` returns `ok` (HTTP server is alive); the Containers card shows "Docker is unavailable" but the rest of the dashboard still updates every 15 s.
