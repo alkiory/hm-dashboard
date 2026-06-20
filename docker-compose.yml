@@ -1,33 +1,34 @@
 services:
-  docker-proxy:
+  hld-docker-proxy:
     image: tecnativa/docker-socket-proxy
-    container_name: hld-docker-proxy
     restart: unless-stopped
     environment:
       - CONTAINERS=1
       - INFO=1
       - POST=1
       - STATS=1
+      - NETWORKS=1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - npm_network
 
-  dashboard:
-    build: .                     # <-- CRÍTICO: Cambiado 'image: ghcr.io...' por 'build: .'
-    container_name: home-lab-dashboard
+  home-lab-dashboard:
+    build: .
     restart: unless-stopped
     security_opt:
       - apparmor:unconfined
+    ports:
+      - "3051:3001"                # <-- Cambiado de 8080:8080 a 3051:3001 para evitar colisiones con otros servicios
     environment:
       - PORT=3001                 # <-- Dejamos el 3001 interno (no colisiona porque no se publica en el host)
       - POLLING_INTERVAL=30s      # <-- 30 segundos relaja la carga y elimina el 'context deadline exceeded'
-      - COMPOSE_SCAN_PATH=/srv
+      - COMPOSE_SCAN_PATH=/projects   # <--- Cambiamos la ruta interna a /projects
       - DOCKER_HOST=tcp://hld-docker-proxy:2375
     volumes:
       - /proc:/proc:ro
       - /sys:/sys:ro
-      - /srv:/srv:ro
+      - /home/alkiory/projects:/projects:ro
       - dashboard-data:/data
     networks:
       - npm_network
