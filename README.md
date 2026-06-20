@@ -2,7 +2,7 @@
 
 A *self-hosted*, *ultra-light* dashboard for a Home Lab. Single binary, ~50 MB
 RAM, modern dark/light UI, zero heavy-framework bloat. Built with **Go** on the
-backend and **HTMX + minimal vanilla JS + handcrafted CSS** on the front end.
+backend and **minimal vanilla JS + handcrafted CSS** on the front end.
 
 | What it gives you                           | How it does it                              |
 | ------------------------------------------- | ------------------------------------------- |
@@ -10,27 +10,27 @@ backend and **HTMX + minimal vanilla JS + handcrafted CSS** on the front end.
 | Network (interfaces, bandwidth, public IP)  | `gopsutil/net`, ephemeral IP-echo providers|
 | Container status (state, health, restarts)  | Docker Engine API over the socket           |
 | Auto-discovered services from compose files | YAML walker over `COMPOSE_SCAN_PATH` dirs   |
-| 15 s polling, atomic snapshot, lock-free UI | `atomic.Pointer[Snapshot]` + HTMX SWAP     |
+| 15 s polling, atomic snapshot, lock-free UI | `atomic.Pointer[Snapshot]` + local card fetcher |
 | < 50 MB RAM, < 1 % CPU on a Pi             | Static binary, single goroutine, polled I/O |
 
 ---
 
-## 1. Why Go + HTMX (vs SPA stacks)
+## 1. Why Go + vanilla JS (vs SPA stacks)
 
 The homelab target audience cares about three things: low resource usage,
 zero-config deployment, and operational visibility. SPA stacks (React, Vue,
 Svelte-Kit, Next.js…) are optimised for *consumer-app* UX and ship tens of
 MB of framework JavaScript plus a build chain. We don't:
 
-| Concern                        | SPA stack              | Go + HTMX                  |
+| Concern                        | SPA stack              | Go + vanilla JS            |
 | ------------------------------ | ---------------------- | -------------------------- |
 | Process model                  | Node + reverse proxy   | One Go binary              |
 | RAM at idle                    | 80–200 MB              | **~12 MB**                 |
 | Build pipeline                 | npm/yarn, Vite/webpack | `go build`                 |
-| Client-side JS                 | ≥ 50 KB shipped        | **~15 KB** (a single CDN   |
-|                                | framework + app code   | htmx tag)                  |
+| Client-side JS                 | ≥ 50 KB shipped        | **~3 KB** local app script |
+|                                | framework + app code   | no external runtime        |
 | State on server                | Often stateful, hot    | Atomic snapshot store, **cold for any HTTP request** |
-| Polling                        | WebSockets + reducers  | `hx-trigger="every 15s"`   |
+| Polling                        | WebSockets + reducers  | timed `fetch()` partials   |
 
 Net result: a single 22 MB container that boots in <100 ms and refreshes the
 UI four times per minute while using a fraction of the resources your
@@ -53,7 +53,7 @@ production monitoring stack probably already consumes.
    │       │                  │                      │
    │       │                  │  goroutine: poller ──┼──► gopsutil (/proc, /sys)
    │       │                  │                      │
-   │       │                  │  atomic.Pointer ─────┼──► /api/cards/* (HTMX partials)
+   │       │                  │  atomic.Pointer ─────┼──► /api/cards/* (HTML partials)
    │       │                  └─────────┬────────────┘
    │       │                            │
    │       │                ┌───────────▼──────────┐
@@ -204,7 +204,7 @@ SSL lives at NPM. The dashboard serves plain internal HTTP.
    - **Scheme:** `http`
    - **Forward Hostname/IP:** the IP of your Docker host
    - **Forward Port:** `3001`
-   - **Websockets Support:** *off* (we're HTMX-poll, not push)
+   - **Websockets Support:** *off* (the UI polls HTML partials, not push)
    - **SSL Tab:** "Request a new SSL Certificate" → enable
      "Force SSL" + "HTTP/2" + "HSTS"
 3. (Optional) Enable **Access Lists** so only your LAN/WireGuard can hit it.
@@ -284,18 +284,10 @@ The `dashboard-data` named volume is created by the included compose.
 
 ## 9. Air-gapped deployments
 
-HTMX is loaded from a CDN by default. To remove the external dependency:
-
-```bash
-# Download once
-curl -L https://unpkg.com/[email protected]/dist/htmx.min.js \
-  -o web/static/js/htmx.min.js
-
-# Edit web/templates/layout.html to remove the <script src="https://..."> tag
-# and load /static/js/htmx.min.js in its place.
-```
-
-Rebuild the image and the binary now contains htmx.
+The dashboard has no required external browser dependency. CSS, JavaScript,
+templates, and card partials are embedded into the Go binary and served from
+the same origin as the dashboard. Rebuild the image after frontend changes and
+the binary will contain the updated assets.
 
 ---
 
@@ -310,8 +302,8 @@ Rebuild the image and the binary now contains htmx.
 
 The `snapshot.Store` is a single `atomic.Pointer`. After the first tick
 the only allocations are the per-tick collector outputs (a few KB) and
-the rendered HTML for cards (~2 KB each). HTMX uses payload-level
-caching — the same partial is reused for all viewers.
+the rendered HTML for cards (~2 KB each). Card refreshes reuse the same
+server-rendered partial endpoints for all viewers.
 
 ---
 
@@ -329,7 +321,7 @@ MIT. See `LICENSE` if you maintain one (not committed by default).
 | Containers always show `% 0`         | Pre-CPU baseline missing on first tick; will populate by the second poll |
 | Empty "Network" card                 | gopsutil cannot read `/proc/net/dev` — check `/proc` is mounted `:ro` |
 | `0.0 °C` shown                       | No thermal zones on this hardware; the card hides the row entirely |
-| `docker ps` shows `Up ... (unhealthy)` for `home-lab-dashboard` | The compose healthcheck currently calls `/health`, but the app exposes `/healthz`. Change the healthcheck URL to `http://localhost:3001/healthz`, then recreate the container. |
+| `docker ps` shows `Up ... (unhealthy)` for `home-lab-dashboard` | Verify the healthcheck calls `http://localhost:3001/healthz`. Older containers may still call `/health`; recreate the service after updating compose. |
 | Container unhealthy determinator... | `(<state>)` parsing depends on Docker's Status text format; if Docker changes the format, update `healthFromStatus` |
 
 ---
@@ -352,7 +344,7 @@ compose file as-is. Otherwise create it or rename the network in
 docker network create npm_network
 ```
 
-### 2. Fix the current healthcheck path
+### 2. Verify the healthcheck path
 
 The Go server registers:
 
@@ -367,7 +359,7 @@ If `docker ps` shows this state:
 hm-dashboard-dashboard   "/app/dashboard"   Up ... (unhealthy)   3001/tcp   home-lab-dashboard
 ```
 
-update the dashboard healthcheck in `docker-compose.yml` from `/health` to
+make sure the dashboard healthcheck in `docker-compose.yml` points to
 `/healthz`:
 
 ```yaml
@@ -392,7 +384,7 @@ docker compose ps
 docker compose logs -f --tail 200 dashboard
 ```
 
-Expected result after the healthcheck path is corrected:
+Expected result:
 
 ```text
 home-lab-dashboard   /app/dashboard   Up ... (healthy)   3001/tcp

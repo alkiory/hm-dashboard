@@ -3,7 +3,8 @@
 // Responsibilities:
 //   1. Read/write theme preference in localStorage.
 //   2. Toggle theme on click.
-//   3. Update the header "last updated" stamp from the cache.
+//   3. Fetch and refresh dashboard cards.
+//   4. Update the header "last updated" stamp.
 //
 // We deliberately do not pull in Alpine.js or any framework — every byte
 // of this file ships to every client, every refresh.
@@ -43,21 +44,57 @@
     });
   }
 
-  // Best-effort update of the "updated Xs ago" tag. HTMX fires a header
-  // event after every swap; we use HX-Trigger header from server if provided.
-  // (Not currently emitted — left as a hook for future use.)
-  document.addEventListener("htmx:afterSwap", function (evt) {
-    // No-op for now.
-  });
-
-  // Heartbeat: refresh the "last-updated" badge via a tiny JSON fetch every
-  // 30s so the header doesn't fall out of sync with the cards.
-  // Cards are still refreshed by HTMX; this is purely cosmetic.
   var lastEl = document.getElementById("last-updated-value");
-  function tick() {
-    fetch("/api/cards/services", { headers: { "X-HLD-Heartbeat": "1" } })
-      .then(function (r) { return r.headers.get("X-Last-Updated"); })
-      .then(function (ts) { if (ts && lastEl) lastEl.textContent = "@ " + ts; })
-      .catch(function () { /* silent */ });
+
+  function markUpdated() {
+    if (lastEl) lastEl.textContent = "just now";
+  }
+
+  function intervalFromTrigger(trigger) {
+    var match = String(trigger || "").match(/every\s+(\d+)s/i);
+    return match ? Number(match[1]) * 1000 : 15000;
+  }
+
+  function loadCard(el) {
+    var url = el.getAttribute("hx-get");
+    if (!url || el.dataset.loading === "1") return;
+
+    el.dataset.loading = "1";
+    el.classList.add("htmx-request");
+
+    fetch(url, {
+      headers: { "X-Requested-With": "fetch" },
+      cache: "no-store"
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.text();
+      })
+      .then(function (html) {
+        el.innerHTML = html;
+        markUpdated();
+      })
+      .catch(function () {
+        el.innerHTML = '<p class="muted">Unable to load data. Check the dashboard logs and API endpoints.</p>';
+      })
+      .finally(function () {
+        el.dataset.loading = "0";
+        el.classList.remove("htmx-request");
+      });
+  }
+
+  function startCards() {
+    var cards = document.querySelectorAll("[hx-get]");
+    Array.prototype.forEach.call(cards, function (el) {
+      var interval = intervalFromTrigger(el.getAttribute("hx-trigger"));
+      window.setTimeout(function () { loadCard(el); }, 100);
+      window.setInterval(function () { loadCard(el); }, interval);
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startCards);
+  } else {
+    startCards();
   }
 })();

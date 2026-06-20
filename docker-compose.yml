@@ -33,7 +33,7 @@ services:
     networks:
       - npm_network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"] # <-- Apunta al 3001 interno
+      test: ["CMD", "curl", "-f", "http://localhost:3001/healthz"] # <-- Apunta al 3001 interno
       interval: 30s
       timeout: 10s
       retries: 3
