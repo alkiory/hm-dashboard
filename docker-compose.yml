@@ -1,112 +1,44 @@
-# ----------------------------------------------------------------------------
-#  Home Lab Dashboard — production docker-compose.
-#
-#  This file runs the dashboard on an *internal* HTTP port behind Nginx
-#  Proxy Manager (NPM). SSL/TLS is terminated by NPM; the dashboard does not
-#  need cert material.
-#
-#  Two security postures are documented here:
-#    (A) Default: Docker access via the tecnativa/docker-socket-proxy
-#        sidecar — the dashboard can only call read-only endpoints.
-#    (B) Optional (see :app --privileged or /var/run/docker.sock): if you
-#        want full stats incl. cpu_percent streaming, mount the socket
-#        directly — equivalent to giving the container root.
-#
-#  The default is (A). To enable (B) drop --security-opts and add the
-#  volume ::/var/run/docker.sock; details in README → Security.
-# ----------------------------------------------------------------------------
-
 services:
-
-  # ---- Optional socket-proxy (security pattern A) -------------------------
   docker-proxy:
     image: tecnativa/docker-socket-proxy
     container_name: hld-docker-proxy
     restart: unless-stopped
-    # Allow ONLY the endpoints we need:
-    #   GET /containers/json           list
-    #   GET /containers/{id}/stats     one-shot stats
-    #   GET /containers/{id}/json      inspect (used by labels)
-    #   GET /system/df                 disk free fallback
     environment:
       - CONTAINERS=1
       - INFO=1
-      - IMAGES=0
-      - NETWORKS=0
-      - VOLUMES=0
-      - EVENTS=0
-      - EXEC=0
       - POST=1
       - STATS=1
-      - DELETE=0
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - npm_network
-    # No healthcheck; the socket is the source of truth and the proxy is
-    # stateless.
-    logging: &log-default
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: service,com.docker.compose.project
 
-  # ---- App ----------------------------------------------------------------
   dashboard:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        VERSION: latest
-    container_name: home-lab-dashboard
     image: ghcr.io/alkiory/homelab-dashboard:latest
+    container_name: home-lab-dashboard
     restart: unless-stopped
-    depends_on:
-      - docker-proxy
-
-    # Tell the app to talk to the proxy instead of the real socket.
+    # 1. EVITA EL ERROR DE APPARArmor/READ-ONLY AL TRABAJAR INTERNAMENTE:
+    security_opt:
+      - apparmor:unconfined
     environment:
       - PORT=3001
-      - POLLING_INTERVAL=15
-      - LOG_LEVEL=info
-      - ENABLE_PUBLIC_IP=true
-      - DASHBOARD_TITLE=Home Lab
-      # Comma-separated paths to scan for compose files.
-      # Mount each path under the same inside-container location.
+      - POLLING_INTERVAL=15s
       - COMPOSE_SCAN_PATH=/srv
-      - DOCKER_HOST=tcp://docker-proxy:2375
-
+      # 2. CORRECCIÓN CRÍTICA: Cambiar tcp://docker-proxy por tcp://hld-docker-proxy
+      - DOCKER_HOST=tcp://hld-docker-proxy:2375
     volumes:
-      # Read-only host access to /proc and /sys so the gopsutil + thermal
-      # collectors work without privilege escalation.
       - /proc:/proc:ro
       - /sys:/sys:ro
-      # The directory we want to scan for compose files.
-      # Repeat per path if you stack multiple locations.
       - /srv:/srv:ro
-      # Optional: a single SQLite file for future persistent config.
       - dashboard-data:/data
-
     networks:
       - npm_network
-    # ESTO para forzar que el healthcheck use una ruta que sí existe:
+    # 3. ACTUALIZA EL HEALTHCHECK AL PUERTO REAL (3001)
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-
-    security_opt:
-      - apparmor:unconfined
-
-    labels:
-      com.docker.compose.project: homelab-dashboard
-      # Tags that NPM auto-discovery picks up:
-      dashboard.url: https://home.example.com
-      dashboard.description: Home Lab dashboard
-
-    logging: *log-default
 
 volumes:
   dashboard-data:
@@ -115,12 +47,3 @@ networks:
   npm_network:
     name: npm_network
     external: true
-# ----------------------------------------------------------------------------
-#  Quick reference
-# ----------------------------------------------------------------------------
-#  Bring up:        docker compose up -d --build
-#  View logs:       docker compose logs -f dashboard
-#  Shell in:        docker compose exec dashboard sh
-#  Re-pull image:   docker compose pull dashboard && docker compose up -d
-#  Remove:          docker compose down --volumes
-# ----------------------------------------------------------------------------
