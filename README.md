@@ -315,7 +315,13 @@ caching — the same partial is reused for all viewers.
 
 ---
 
-## 11. Troubleshooting
+## 11. License
+
+MIT. See `LICENSE` if you maintain one (not committed by default).
+
+---
+
+## 12. Troubleshooting / errors
 
 | Symptom                              | Likely cause / fix                                  |
 | ------------------------------------ | --------------------------------------------------- |
@@ -323,10 +329,120 @@ caching — the same partial is reused for all viewers.
 | Containers always show `% 0`         | Pre-CPU baseline missing on first tick; will populate by the second poll |
 | Empty "Network" card                 | gopsutil cannot read `/proc/net/dev` — check `/proc` is mounted `:ro` |
 | `0.0 °C` shown                       | No thermal zones on this hardware; the card hides the row entirely |
+| `docker ps` shows `Up ... (unhealthy)` for `home-lab-dashboard` | The compose healthcheck currently calls `/health`, but the app exposes `/healthz`. Change the healthcheck URL to `http://localhost:3001/healthz`, then recreate the container. |
 | Container unhealthy determinator... | `(<state>)` parsing depends on Docker's Status text format; if Docker changes the format, update `healthFromStatus` |
 
 ---
 
-## 12. License
+## 13. Usage
 
-MIT. See `LICENSE` if you maintain one (not committed by default).
+This project is intended to run as a ready-to-use homelab dashboard behind
+Nginx Proxy Manager or another reverse proxy. The included compose file does
+not publish port `3001` to the host; it attaches the dashboard to the external
+`npm_network` Docker network so the proxy can reach
+`home-lab-dashboard:3001` directly.
+
+### 1. Prepare the Docker network
+
+If your Nginx Proxy Manager network already exists as `npm_network`, keep the
+compose file as-is. Otherwise create it or rename the network in
+`docker-compose.yml` to match your proxy network:
+
+```bash
+docker network create npm_network
+```
+
+### 2. Fix the current healthcheck path
+
+The Go server registers:
+
+```text
+/healthz  -> liveness, returns "ok"
+/readyz   -> readiness, returns "ready" after the first polling tick
+```
+
+If `docker ps` shows this state:
+
+```text
+hm-dashboard-dashboard   "/app/dashboard"   Up ... (unhealthy)   3001/tcp   home-lab-dashboard
+```
+
+update the dashboard healthcheck in `docker-compose.yml` from `/health` to
+`/healthz`:
+
+```yaml
+healthcheck:
+  test: ["CMD", "curl", "-f", "http://localhost:3001/healthz"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+```
+
+Then recreate the service:
+
+```bash
+docker compose up -d --build --force-recreate dashboard
+```
+
+### 3. Start the dashboard
+
+```bash
+docker compose up -d --build
+docker compose ps
+docker compose logs -f --tail 200 dashboard
+```
+
+Expected result after the healthcheck path is corrected:
+
+```text
+home-lab-dashboard   /app/dashboard   Up ... (healthy)   3001/tcp
+```
+
+### 4. Connect through Nginx Proxy Manager
+
+Create a proxy host with these values:
+
+| NPM field | Value |
+| --------- | ----- |
+| Scheme | `http` |
+| Forward Hostname/IP | `home-lab-dashboard` |
+| Forward Port | `3001` |
+| Websockets Support | Off |
+| Cache Assets | Off |
+| SSL | Request a certificate, then enable Force SSL |
+
+This works when NPM and the dashboard are both attached to `npm_network`.
+
+### 5. Verify from inside Docker
+
+```bash
+docker exec home-lab-dashboard curl -fsS http://127.0.0.1:3001/healthz
+docker exec home-lab-dashboard curl -fsS http://127.0.0.1:3001/readyz
+```
+
+Expected responses:
+
+```text
+ok
+ready
+```
+
+If `/readyz` returns `503 priming`, wait for one polling interval
+(`POLLING_INTERVAL`, currently `30s` in compose) and retry.
+
+### 6. Run without a reverse proxy for local testing
+
+Because the compose file does not publish a host port, add a temporary port
+mapping to the `dashboard` service when you want to test directly from the
+Docker host:
+
+```yaml
+ports:
+  - "3001:3001"
+```
+
+Then open:
+
+```text
+http://localhost:3001
+```
