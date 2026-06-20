@@ -72,14 +72,14 @@ WORKDIR /app
 COPY --from=build /out/dashboard /app/dashboard
 
 # Runtime config — overridable via docker-compose env block.
-ENV PORT=8080 \
+ENV PORT=3001 \
     POLLING_INTERVAL=15s \
     LOG_LEVEL=info \
     ENABLE_PUBLIC_IP=true
 
 USER hld
 
-EXPOSE 8080
+EXPOSE 3001
 
 # In-app health endpoint — Docker's HEALTHCHECK uses the same endpoint so
 # you don't need extra curl tooling inside the image (curl is installed for

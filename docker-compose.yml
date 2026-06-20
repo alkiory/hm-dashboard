@@ -17,6 +17,7 @@ services:
     image: ghcr.io/alkiory/homelab-dashboard:latest
     container_name: home-lab-dashboard
     restart: unless-stopped
+    read_only: false
     # 1. EVITA EL ERROR DE APPARArmor/READ-ONLY AL TRABAJAR INTERNAMENTE:
     security_opt:
       - apparmor:unconfined
