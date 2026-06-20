@@ -97,6 +97,9 @@ services:
       timeout: 10s
       retries: 3
 
+    security_opt:
+      - apparmor:unconfined
+
     labels:
       com.docker.compose.project: homelab-dashboard
       # Tags that NPM auto-discovery picks up:
