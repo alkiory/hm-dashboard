@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -86,17 +88,18 @@ func CollectContainers(ctx context.Context) (Container, error) {
 			name = trimPrefix(c.Names[0], "/")
 		}
 		s := ContainerSummary{
-			ID:      shortID(c.ID),
-			Name:    name,
-			Image:   imageShort(c.Image),
-			State:   strings.ToLower(c.State),
-			Status:  c.Status,
-			Health:  healthFromStatus(c.Status, c.State),
-			Project: labelValue(c.Labels, "com.docker.compose.project"),
-			Ports:   formatPorts(c.Ports),
-			// RestartCount is not on the list response in v25.0.6
-			// (only on inspect). Left at zero until we add an inspect
-			// round-trip, see TODO in follow-ups.
+			ID:         shortID(c.ID),
+			FullID:     c.ID,
+			Name:       name,
+			Image:      imageShort(c.Image),
+			State:      strings.ToLower(c.State),
+			Status:     c.Status,
+			Health:     healthFromStatus(c.Status, c.State),
+			Project:    labelValue(c.Labels, "com.docker.compose.project"),
+			Ports:      formatPorts(c.Ports),
+			CanStart:   canStart(c.State),
+			CanStop:    canStop(c.State),
+			CanRestart: canRestart(c.State),
 		}
 		items = append(items, s)
 		switch s.State {
@@ -110,7 +113,32 @@ func CollectContainers(ctx context.Context) (Container, error) {
 		}
 	}
 
-	// Second pass: per-container stats. v25.0.6 ContainerStats returns a
+	// Second pass: inspect + per-container stats. Inspect gives restart
+	// counts and healthcheck logs, while stats gives live resource use.
+	for i := range items {
+		inspect, err := d.cli.ContainerInspect(ctx, items[i].FullID)
+		if err != nil {
+			slog.Warn("docker inspect failed",
+				slog.String("container", items[i].ID),
+				slog.String("err", err.Error()))
+			continue
+		}
+		if inspect.RestartCount > 0 {
+			items[i].RestartCount = inspect.RestartCount
+		}
+		if inspect.State != nil {
+			items[i].State = strings.ToLower(inspect.State.Status)
+			items[i].CanStart = canStart(items[i].State)
+			items[i].CanStop = canStop(items[i].State)
+			items[i].CanRestart = canRestart(items[i].State)
+			if inspect.State.Health != nil {
+				items[i].Health = strings.ToLower(inspect.State.Health.Status)
+				items[i].HealthHints = healthHints(inspect.State.Health.Log)
+			}
+		}
+	}
+
+	// Third pass: per-container stats. v25.0.6 ContainerStats returns a
 	// types.ContainerStats{Body io.ReadCloser, OSType} — the per-cpu /
 	// memory numbers are streamed as JSON inside Body and need to be
 	// decoded into container.StatsResponse. Issued as one round-trip per
@@ -148,8 +176,39 @@ func CollectContainers(ctx context.Context) (Container, error) {
 		}
 	}
 
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].Project != items[j].Project {
+			return items[i].Project < items[j].Project
+		}
+		return items[i].Name < items[j].Name
+	})
 	out.Items = items
 	return out, nil
+}
+
+// ManageContainer performs a user-requested Docker action. This is only used
+// by explicit POST handlers; regular dashboard refreshes keep using snapshots.
+func ManageContainer(ctx context.Context, id, action string) error {
+	if id == "" {
+		return fmt.Errorf("container id is required")
+	}
+	d, err := newDockerClient()
+	if err != nil {
+		return fmt.Errorf("docker client: %w", err)
+	}
+	defer d.close()
+
+	timeout := 10
+	switch action {
+	case "start":
+		return d.cli.ContainerStart(ctx, id, container.StartOptions{})
+	case "stop":
+		return d.cli.ContainerStop(ctx, id, container.StopOptions{Timeout: &timeout})
+	case "restart":
+		return d.cli.ContainerRestart(ctx, id, container.StopOptions{Timeout: &timeout})
+	default:
+		return fmt.Errorf("unsupported container action %q", action)
+	}
 }
 
 // --- helpers ---------------------------------------------------------------
@@ -184,6 +243,63 @@ func labelValue(labels map[string]string, key string) string {
 		return ""
 	}
 	return labels[key]
+}
+
+func canStart(state string) bool {
+	switch strings.ToLower(state) {
+	case "created", "exited", "dead":
+		return true
+	}
+	return false
+}
+
+func canStop(state string) bool {
+	switch strings.ToLower(state) {
+	case "running", "paused", "restarting":
+		return true
+	}
+	return false
+}
+
+func canRestart(state string) bool {
+	switch strings.ToLower(state) {
+	case "running", "paused", "restarting":
+		return true
+	}
+	return false
+}
+
+func healthHints(logs []*types.HealthcheckResult) []HealthHint {
+	if len(logs) == 0 {
+		return nil
+	}
+	start := 0
+	if len(logs) > 3 {
+		start = len(logs) - 3
+	}
+	hints := make([]HealthHint, 0, len(logs)-start)
+	for _, entry := range logs[start:] {
+		if entry == nil {
+			continue
+		}
+		output := strings.TrimSpace(entry.Output)
+		if output == "" {
+			output = "healthcheck exited without output"
+		}
+		hints = append(hints, HealthHint{
+			ExitCode: entry.ExitCode,
+			Output:   truncateText(output, 180),
+			Started:  entry.Start.Format(time.RFC3339),
+		})
+	}
+	return hints
+}
+
+func truncateText(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "…"
 }
 
 // healthFromStatus extracts a normalised health string from the Docker
@@ -224,7 +340,6 @@ func formatPorts(ports []types.Port) string {
 	}
 	return b.String()
 }
-
 
 // cpuPercentFromStats computes a normalised % CPU using the daemon-supplied
 // pre-totals (PreCPUUsage). These are populated by Docker when stream=false.

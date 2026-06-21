@@ -67,7 +67,7 @@ func CollectHardware(ctx context.Context) (Hardware, error) {
 	// Temperatures: prefer the linux thermal_zone files (cheap and reliable
 	// on most NAS/homelab boards). gopsutil's sensors package depends on
 	// optional tooling that we don't want to force into the image.
-	if t, ok := readLinuxThermalZone(ctx); ok {
+	if t, ok := readLinuxTemperature(ctx); ok {
 		h.TemperatureC = round1(t)
 		h.HasTemp = true
 	}
@@ -108,43 +108,20 @@ func round1(v float64) float64 {
 	return float64(int(v*10+0.5)) / 10
 }
 
-// readLinuxThermalZone queries /sys/class/thermal/thermal_zone*/temp for the
-// first zone that returns a sensible millidegree-C value. Bounded by ctx so
-// the poller can never block on a broken sysfs.
-func readLinuxThermalZone(ctx context.Context) (float64, bool) {
+// readLinuxTemperature queries common Linux thermal sensor files. Bounded by
+// ctx so the poller can never block on a broken sysfs.
+func readLinuxTemperature(ctx context.Context) (float64, bool) {
 	type result struct {
-		v float64
+		v  float64
 		ok bool
 	}
 	resCh := make(chan result, 1)
 
 	go func() {
-		// Lazy import: only runs on Linux; for other platforms the directory
-		// doesn't exist and we report no temperature.
 		defer func() { _ = recover() }()
-		entries, err := readDirNames("/sys/class/thermal")
-		if err != nil {
-			resCh <- result{}
-			return
-		}
 		var max float64
-		for _, name := range entries {
-			if !strings.HasPrefix(name, "thermal_zone") {
-				continue
-			}
-			raw, err := readFile("/sys/class/thermal/" + name + "/temp")
-			if err != nil {
-				continue
-			}
-			milli, err := parseInt(strings.TrimSpace(raw))
-			if err != nil || milli <= 0 {
-				continue
-			}
-			t := float64(milli) / 1000.0
-			if t > max {
-				max = t
-			}
-		}
+		max = maxTemperature(max, "/sys/class/thermal", "thermal_zone", "/temp")
+		max = maxTemperature(max, "/sys/class/hwmon", "hwmon", "")
 		if max > 0 {
 			resCh <- result{v: max, ok: true}
 			return
@@ -158,6 +135,51 @@ func readLinuxThermalZone(ctx context.Context) (float64, bool) {
 	case r := <-resCh:
 		return r.v, r.ok
 	}
+}
+
+func maxTemperature(current float64, dir, prefix, suffix string) float64 {
+	entries, err := readDirNames(dir)
+	if err != nil {
+		return current
+	}
+	for _, name := range entries {
+		if !strings.HasPrefix(name, prefix) {
+			continue
+		}
+		if suffix != "" {
+			current = maxSensorTemp(current, dir+"/"+name+suffix)
+			continue
+		}
+		files, err := readDirNames(dir + "/" + name)
+		if err != nil {
+			continue
+		}
+		for _, file := range files {
+			if strings.HasPrefix(file, "temp") && strings.HasSuffix(file, "_input") {
+				current = maxSensorTemp(current, dir+"/"+name+"/"+file)
+			}
+		}
+	}
+	return current
+}
+
+func maxSensorTemp(current float64, path string) float64 {
+	raw, err := readFile(path)
+	if err != nil {
+		return current
+	}
+	milli, err := parseInt(strings.TrimSpace(raw))
+	if err != nil || milli <= 0 {
+		return current
+	}
+	t := float64(milli) / 1000.0
+	if t < 1 || t > 130 {
+		return current
+	}
+	if t > current {
+		return t
+	}
+	return current
 }
 
 // Convenience helpers wrapping os functions so thermal reading can be

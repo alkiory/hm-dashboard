@@ -10,29 +10,39 @@
     </details>
   {{end}}
 
-  {{if .Services}}
-    <div class="services__grid">
-      {{range .Services}}
-      {{$isWeb := or (hasPrefix .URL "https:") (hasPrefix .URL "http:")}}
-      {{if and .URL $isWeb}}
-      <a class="svc" href="{{.URL}}" target="_blank" rel="noopener noreferrer">
-        <div class="svc__title">{{.Name}}{{if .Project}} <span class="muted">· {{.Project}}</span>{{end}}</div>
-        {{if .Description}}<div class="svc__desc">{{.Description}}</div>{{else}}<div class="svc__desc muted">no description</div>{{end}}
-        <div class="svc__meta">
-          <span class="svc__link">↗ {{.URL}}</span>
-          {{if .Ports}}<span class="svc__ports">📡 {{range $i, $p := .Ports}}{{if gt $i 0}} · {{end}}{{$p}}{{end}}</span>{{end}}
+  {{if .Groups}}
+    <div class="services__groups">
+      {{range .Groups}}
+      <section class="svc-group">
+        <header class="svc-group__hdr">
+          <h3>{{.Name}}</h3>
+          <span class="muted">{{len .Services}} service{{if ne (len .Services) 1}}s{{end}}</span>
+        </header>
+        <div class="services__grid">
+          {{range .Services}}
+          {{$isWeb := or (hasPrefix .URL "https:") (hasPrefix .URL "http:")}}
+          {{if and .URL $isWeb}}
+          <a class="svc" href="{{.URL}}" target="_blank" rel="noopener noreferrer">
+            <div class="svc__title">{{.Name}}</div>
+            {{if .Description}}<div class="svc__desc">{{.Description}}</div>{{else}}<div class="svc__desc muted">no description</div>{{end}}
+            <div class="svc__meta">
+              <span class="svc__link">↗ {{.URL}}</span>
+              {{if .Ports}}<span class="svc__ports">📡 {{range $i, $p := .Ports}}{{if gt $i 0}} · {{end}}{{$p}}{{end}}</span>{{end}}
+            </div>
+          </a>
+          {{else}}
+          <div class="svc svc--nolink">
+            <div class="svc__title">{{.Name}}</div>
+            {{if .Description}}<div class="svc__desc">{{.Description}}</div>{{else}}<div class="svc__desc muted">no description</div>{{end}}
+            <div class="svc__meta">
+              {{if .URL}}<span class="svc__link svc__link--muted">↗ {{.URL}}</span><span class="muted"> (non-web link, rendered as text)</span>{{end}}
+              {{if .Ports}}<span class="svc__ports">📡 {{range $i, $p := .Ports}}{{if gt $i 0}} · {{end}}{{$p}}{{end}}</span>{{end}}
+            </div>
+          </div>
+          {{end}}
+          {{end}}
         </div>
-      </a>
-      {{else}}
-      <div class="svc svc--nolink">
-        <div class="svc__title">{{.Name}}{{if .Project}} <span class="muted">· {{.Project}}</span>{{end}}</div>
-        {{if .Description}}<div class="svc__desc">{{.Description}}</div>{{else}}<div class="svc__desc muted">no description</div>{{end}}
-        <div class="svc__meta">
-          {{if .URL}}<span class="svc__link svc__link--muted">↗ {{.URL}}</span><span class="muted"> (non-web link, rendered as text)</span>{{end}}
-          {{if .Ports}}<span class="svc__ports">📡 {{range $i, $p := .Ports}}{{if gt $i 0}} · {{end}}{{$p}}{{end}}</span>{{end}}
-        </div>
-      </div>
-      {{end}}
+      </section>
       {{end}}
     </div>
   {{else}}

@@ -4,6 +4,9 @@
   {{if not .Container.Available}}
     <p class="muted">Docker is unavailable. {{range .Errors}}{{.}}{{end}}</p>
   {{else}}
+    {{if .Action.Message}}
+      <div class="notice {{if .Action.IsError}}notice--bad{{else}}notice--ok{{end}}">{{.Action.Message}}</div>
+    {{end}}
     <div class="containers__counts">
       <span class="chip chip--ok">{{.Container.Running}} running</span>
       <span class="chip chip--bad">{{.Container.Stopped}} stopped</span>
@@ -39,6 +42,42 @@
           {{if gt .RestartCount 0}}
             <span class="crow__stat" title="Restart count">↻ {{.RestartCount}}</span>
           {{end}}
+          <details class="container-detail">
+            <summary class="btn btn--small">Details</summary>
+            <div class="container-detail__panel">
+              <dl class="container-detail__grid">
+                <div><dt>ID</dt><dd><code>{{.ID}}</code></dd></div>
+                {{if .Project}}<div><dt>Project</dt><dd>{{.Project}}</dd></div>{{end}}
+                <div><dt>Status</dt><dd>{{.Status}}</dd></div>
+                {{if .Ports}}<div><dt>Ports</dt><dd>{{.Ports}}</dd></div>{{end}}
+              </dl>
+              {{if isUnhealthy .Health}}
+                <div class="health-hints">
+                  <div class="health-hints__title">Unhealthy hints</div>
+                  {{if .HealthHints}}
+                    <ul>
+                      {{range .HealthHints}}
+                        <li><code>{{.ExitCode}}</code> {{.Output}}</li>
+                      {{end}}
+                    </ul>
+                  {{else}}
+                    <p class="muted">Docker did not return healthcheck output for this container.</p>
+                  {{end}}
+                </div>
+              {{end}}
+              <div class="container-actions">
+                {{if .CanStart}}
+                  <form data-container-action method="post" action="/api/containers/{{.FullID}}/start"><button class="btn btn--small" type="submit">Start</button></form>
+                {{end}}
+                {{if .CanRestart}}
+                  <form data-container-action method="post" action="/api/containers/{{.FullID}}/restart"><button class="btn btn--small" type="submit">Restart</button></form>
+                {{end}}
+                {{if .CanStop}}
+                  <form data-container-action method="post" action="/api/containers/{{.FullID}}/stop"><button class="btn btn--small btn--danger" type="submit">Stop</button></form>
+                {{end}}
+              </div>
+            </div>
+          </details>
         </div>
       </div>
       {{end}}

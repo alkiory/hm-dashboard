@@ -11,8 +11,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/alkiory/homelab-dashboard/internal/collector"
 	"github.com/alkiory/homelab-dashboard/internal/config"
 	"github.com/alkiory/homelab-dashboard/internal/snapshot"
 )
@@ -28,6 +30,13 @@ type Server struct {
 	store    *snapshot.Store
 	mux      *http.ServeMux
 	interval time.Duration
+	actionMu sync.Mutex
+	action   containerActionStatus
+}
+
+type containerActionStatus struct {
+	Message string
+	IsError bool
 }
 
 // New constructs a Server with all routes registered.
@@ -58,6 +67,7 @@ func (s *Server) routes() {
 	mux.HandleFunc("GET /api/cards/network", s.handleCard(s.renderNetwork))
 	mux.HandleFunc("GET /api/cards/containers", s.handleCard(s.renderContainers))
 	mux.HandleFunc("GET /api/cards/services", s.handleCard(s.renderServices))
+	mux.HandleFunc("POST /api/containers/{id}/{action}", s.handleContainerAction)
 
 	// Full dashboard page.
 	mux.HandleFunc("GET /{$}", s.handleIndex)
@@ -78,6 +88,45 @@ func (s *Server) routes() {
 	})
 
 	s.mux = mux
+}
+
+func (s *Server) handleContainerAction(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(r.PathValue("id"))
+	action := strings.TrimSpace(r.PathValue("action"))
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+
+	err := collector.ManageContainer(ctx, id, action)
+	status := containerActionStatus{
+		Message: fmtContainerActionMessage(action, id, err),
+		IsError: err != nil,
+	}
+	s.actionMu.Lock()
+	s.action = status
+	s.actionMu.Unlock()
+
+	if err != nil {
+		slog.Warn("container action failed",
+			slog.String("container", id),
+			slog.String("action", action),
+			slog.String("err", err.Error()))
+	}
+
+	body, renderErr := s.renderContainers(s.store.Load())
+	if renderErr != nil {
+		http.Error(w, "render failed", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write(body)
+}
+
+func fmtContainerActionMessage(action, id string, err error) string {
+	if err != nil {
+		return action + " failed for " + id + ": " + err.Error()
+	}
+	return action + " requested for " + id
 }
 
 // handleCard wraps a card renderer with the common headers and the
@@ -193,5 +242,3 @@ func (s *Server) Listen(ctx context.Context) error {
 		return err
 	}
 }
-
-

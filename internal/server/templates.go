@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +13,11 @@ import (
 	"github.com/alkiory/homelab-dashboard/internal/discovery"
 	"github.com/alkiory/homelab-dashboard/internal/snapshot"
 )
+
+type serviceGroup struct {
+	Name     string
+	Services []discovery.Service
+}
 
 // TemplatesFS holds the embedded web/ tree. Set by main.go so this
 // package has no embed.FS dependency.
@@ -60,8 +66,8 @@ func funcMap() template.FuncMap {
 			}
 			return fmt.Sprintf("%.1f%%", v)
 		},
-		"mib": func(n uint64) string { return collector.FmtBytes(n) },
-		"rate": func(bps float64) string { return collector.FmtRate(bps) },
+		"mib":    func(n uint64) string { return collector.FmtBytes(n) },
+		"rate":   func(bps float64) string { return collector.FmtRate(bps) },
 		"uptime": func(secs uint64) string { return collector.FmtUptime(secs) },
 		"ago": func(unixNano int64) string {
 			if unixNano == 0 {
@@ -78,7 +84,7 @@ func funcMap() template.FuncMap {
 		"isRunning":   func(s string) bool { return strings.EqualFold(s, "running") },
 		"isStopped":   func(s string) bool { return strings.EqualFold(s, "exited") || strings.EqualFold(s, "dead") },
 		"hasPrefix":   strings.HasPrefix,
-		"truncate":    func(s string, n int) string {
+		"truncate": func(s string, n int) string {
 			if len(s) <= n {
 				return s
 			}
@@ -125,8 +131,13 @@ func (s *Server) renderContainers(snap *snapshot.Snapshot) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.actionMu.Lock()
+	action := s.action
+	s.action = containerActionStatus{}
+	s.actionMu.Unlock()
 	return renderCard(t, map[string]any{
 		"Container":   snap.Container,
+		"Action":      action,
 		"LastUpdated": snap.LastUpdated.Load(),
 	})
 }
@@ -137,10 +148,40 @@ func (s *Server) renderServices(snap *snapshot.Snapshot) ([]byte, error) {
 		return nil, err
 	}
 	return renderCard(t, map[string]any{
-		"Services":    snap.Services.Services,
+		"Groups":      groupServices(snap.Services.Services),
 		"Errors":      snap.Services.Errors,
 		"LastUpdated": snap.LastUpdated.Load(),
 	})
+}
+
+func groupServices(services []discovery.Service) []serviceGroup {
+	if len(services) == 0 {
+		return nil
+	}
+	grouped := make(map[string][]discovery.Service)
+	for _, svc := range services {
+		key := svc.Project
+		if key == "" {
+			key = "Ungrouped"
+		}
+		grouped[key] = append(grouped[key], svc)
+	}
+
+	names := make([]string, 0, len(grouped))
+	for name := range grouped {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	groups := make([]serviceGroup, 0, len(names))
+	for _, name := range names {
+		group := grouped[name]
+		sort.SliceStable(group, func(i, j int) bool {
+			return group[i].Name < group[j].Name
+		})
+		groups = append(groups, serviceGroup{Name: name, Services: group})
+	}
+	return groups
 }
 
 func renderCard(t *template.Template, data map[string]any) ([]byte, error) {

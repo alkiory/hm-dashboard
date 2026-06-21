@@ -83,6 +83,42 @@
       });
   }
 
+  function submitContainerAction(form) {
+    var target = document.getElementById("containers-body");
+    if (!target || form.dataset.loading === "1") return;
+
+    form.dataset.loading = "1";
+    target.classList.add("htmx-request");
+
+    fetch(form.action, {
+      method: "POST",
+      headers: { "X-Requested-With": "fetch" },
+      cache: "no-store"
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.text();
+      })
+      .then(function (html) {
+        target.innerHTML = html;
+        markUpdated();
+      })
+      .catch(function () {
+        target.insertAdjacentHTML("afterbegin", '<div class="notice notice--bad">Container action failed. Check the dashboard logs.</div>');
+      })
+      .finally(function () {
+        form.dataset.loading = "0";
+        target.classList.remove("htmx-request");
+      });
+  }
+
+  document.addEventListener("submit", function (event) {
+    var form = event.target;
+    if (!form || !form.matches("[data-container-action]")) return;
+    event.preventDefault();
+    submitContainerAction(form);
+  });
+
   function startCards() {
     var cards = document.querySelectorAll("[hx-get]");
     Array.prototype.forEach.call(cards, function (el) {
