@@ -1,415 +1,103 @@
 # Home Lab Dashboard
 
-A *self-hosted*, *ultra-light* dashboard for a Home Lab. Single binary, ~50 MB
-RAM, modern dark/light UI, zero heavy-framework bloat. Built with **Go** on the
-backend and **minimal vanilla JS + handcrafted CSS** on the front end.
+A self-hosted, lightweight dashboard for a homelab host. It is a single Go
+binary with embedded HTML/CSS/JS assets, background polling, and a lock-free
+request path.
 
-| What it gives you                           | How it does it                              |
-| ------------------------------------------- | ------------------------------------------- |
-| CPU / Memory / Disk / Temp / Uptime         | `gopsutil/v3`, `/sys/class/thermal/*`       |
-| Network (interfaces, bandwidth, public IP)  | `gopsutil/net`, ephemeral IP-echo providers|
-| Container status (state, health, restarts)  | Docker Engine API over the socket           |
-| Auto-discovered services from compose files | YAML walker over `COMPOSE_SCAN_PATH` dirs   |
-| 15 s polling, atomic snapshot, lock-free UI | `atomic.Pointer[Snapshot]` + local card fetcher |
-| < 50 MB RAM, < 1 % CPU on a Pi             | Static binary, single goroutine, polled I/O |
+| What it shows | How it is collected |
+| --- | --- |
+| CPU, memory, swap, disks, temperature, uptime | `gopsutil/v3`, `/proc`, `/sys/class/thermal/*` |
+| Network interfaces, bandwidth, connectivity, public IP | `gopsutil/net`, `/sys/class/net`, optional HTTPS IP echo services |
+| Docker container state, health, CPU, memory | Docker Engine API through `DOCKER_HOST` |
+| Services discovered from Compose files | YAML scan of `COMPOSE_SCAN_PATH` roots |
 
----
+The frontend is intentionally plain: server-rendered templates, handcrafted
+CSS, and a small vanilla JavaScript file that fetches card partials on a timer.
+There is no SPA framework and no required external browser dependency.
 
-## 1. Why Go + vanilla JS (vs SPA stacks)
+## Architecture
 
-The homelab target audience cares about three things: low resource usage,
-zero-config deployment, and operational visibility. SPA stacks (React, Vue,
-Svelte-Kit, Next.js…) are optimised for *consumer-app* UX and ship tens of
-MB of framework JavaScript plus a build chain. We don't:
-
-| Concern                        | SPA stack              | Go + vanilla JS            |
-| ------------------------------ | ---------------------- | -------------------------- |
-| Process model                  | Node + reverse proxy   | One Go binary              |
-| RAM at idle                    | 80–200 MB              | **~12 MB**                 |
-| Build pipeline                 | npm/yarn, Vite/webpack | `go build`                 |
-| Client-side JS                 | ≥ 50 KB shipped        | **~3 KB** local app script |
-|                                | framework + app code   | no external runtime        |
-| State on server                | Often stateful, hot    | Atomic snapshot store, **cold for any HTTP request** |
-| Polling                        | WebSockets + reducers  | timed `fetch()` partials   |
-
-Net result: a single 22 MB container that boots in <100 ms and refreshes the
-UI four times per minute while using a fraction of the resources your
-production monitoring stack probably already consumes.
-
----
-
-## 2. Architecture diagram (system context)
-
-```
-                            ┌──────────────────────┐
-   ┌──── NPM (TLS) ─────────►  Nginx Proxy Manager  │
-   │     └──── HTTPS ────────►  on :443             │
-   │                          └─────────┬────────────┘
-   │                                    │ HTTP :3001
-   │                                    ▼
-   │                          ┌──────────────────────┐
-   │                          │   Home Lab Dashboard │
-   │       ┌──── env vars ────│   (Go binary)        │
-   │       │                  │                      │
-   │       │                  │  goroutine: poller ──┼──► gopsutil (/proc, /sys)
-   │       │                  │                      │
-   │       │                  │  atomic.Pointer ─────┼──► /api/cards/* (HTML partials)
-   │       │                  └─────────┬────────────┘
-   │       │                            │
-   │       │                ┌───────────▼──────────┐
-   │       │                │ docker-socket-proxy  │   read-only socket proxy
-   │       │                │  (tecnativa)         │   (security pattern A)
-   │       │                └───────────┬──────────┘
-   │       │                            │
-   │       │                  /var/run/docker.sock (read-only)
-   │       │
-   │       └──── /srv:/srv:ro ──────────► walks compose files
+```text
+Browser
+  |
+  | HTTP(S), usually through Nginx Proxy Manager
+  v
+Home Lab Dashboard
+  |
+  | background poller, every POLLING_INTERVAL
+  +--> hardware collector: gopsutil, /proc, /sys
+  +--> network collector: gopsutil, interface state, optional public IP
+  +--> Docker collector: Docker SDK, DOCKER_HOST
+  +--> service discovery: compose-file scan
+  |
+  v
+atomic snapshot.Store
+  |
+  v
+HTTP handlers render / and /api/cards/* from the latest snapshot
 ```
 
-`★ Optional security pattern B (mount the socket directly with explicit
-    read-only flag) is documented below — but the default upstream example
-    uses the proxy so the dashboard process holds **no root-level
-    privileges**.`
+HTTP requests do not call Docker, scan files, or read host metrics directly.
+The poller builds a fresh snapshot and swaps it into `snapshot.Store`; handlers
+only load that snapshot and render templates.
 
----
+## Repository Map
 
-## 3. Project folder structure
-
-```
-homeLabDashboard/
-├── go.mod                   # module declaration, 4 transitive deps
-├── go.sum                   # generated by go mod tidy
-├── main.go                  # entry point; embeds web/ FS
-├── Dockerfile               # multi-stage Alpine → ~22 MB final image
-├── docker-compose.yml       # production: socket-proxy + log rotation + healthcheck
-├── docker-compose.direct.yml# alternative deployment with direct socket mount
-├── .env.example             # all environment knobs, with sane defaults
-├── .dockerignore
-│
-├── internal/
-│   ├── config/              # env-var parsing (single file)
-│   │   └── config.go
-│   │
-│   ├── collector/           # system / network / docker collectors
-│   │   ├── types.go         # shared snapshot types
-│   │   ├── system.go        # CPU, mem, disk, temperature, uptime
-│   │   ├── syscall_unix.go  # thin wrappers for sysfs reads on Linux
-│   │   ├── network.go       # interfaces, bandwidth, connectivity, public IP
-│   │   ├── netstate.go      # per-tick bandwidth-rate cache (internal)
-│   │   ├── docker.go        # container list + one-shot stats
-│   │   ├── docker_env.go    # env-var indirection (test seam)
-│   │   └── format.go        # IEC bytes, bandwidth, uptime formatters
-│   │
-│   ├── discovery/           # file-system compose scanner
-│   │   ├── types.go
-│   │   └── scanner.go       # walks COMPOSE_SCAN_PATH, parses YAML
-│   │
-│   ├── snapshot/
-│   │   └── snapshot.go      # atomic Pointer[Snapshot] — single source of truth
-│   │
-│   ├── poller/
-│   │   └── poller.go        # ticker; runs 3 collectors concurrently + scan
-│   │
-│   └── server/              # HTTP handlers + template cache
-│       ├── server.go        # mux + lifecycle
-│       └── templates.go     # parsed-once template cache + card renderers
-│
-└── web/
-    ├── templates/
-    │   ├── layout.html      # doctype, head, body, four cards
-    │   └── partials/
-    │       ├── hardware.html
-    │       ├── network.html
-    │       ├── containers.html
-    │       └── services.html
-    └── static/
-        ├── css/app.css      # ~4 KB, custom CSS variables, dark/light
-        └── js/app.js        # ~1 KB, theme toggle + heartbeat hook
+```text
+main.go                         Program entrypoint, embedded web assets, signal handling.
+internal/config/config.go       Environment variable parsing and defaults.
+internal/poller/poller.go       Background polling loop and snapshot assembly.
+internal/snapshot/snapshot.go   Atomic snapshot store used by poller and HTTP handlers.
+internal/collector/             Hardware, network, Docker, and formatting collectors.
+internal/discovery/             Compose-file scanner for service discovery.
+internal/server/                HTTP routes, lifecycle, template cache, card renderers.
+web/templates/                  Full-page layout and card partials.
+web/static/css/app.css          Handwritten dashboard styles.
+web/static/js/app.js            Theme toggle and card refresh logic.
+Dockerfile                      Multi-stage static Go build and Alpine runtime image.
+docker-compose.yml              Compose stack using a Docker socket proxy.
+.env.example                    Supported runtime environment variables.
+knowledge.md                    Maintainer support notes and troubleshooting detail.
 ```
 
-Each package is intentionally narrow:
+## Configuration
 
-* **collector/** knows nothing about HTTP or templates. It produces
-  go-resilient structures; the server NEVER calls into it on the request
-  path; everything is from a cached snapshot.
-* **discovery/** runs a file walk and a YAML decode per tick (cheap; we
-  ignore the file if it didn't change semantically).
-* **snapshot/** is a single struct with one `atomic.Pointer` field.
-  Allocations are zero after the first tick.
-* **poller/** drives the cadence and is the only thing calling collectors.
-* **server/** reads from the store and renders; templates are parsed once
-  and cached.
+All runtime configuration comes from environment variables.
 
----
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `PORT` | `3001` | Internal HTTP port. |
+| `POLLING_INTERVAL` | `15s` | Accepts seconds like `15` or durations like `30s`, `1m`. |
+| `DASHBOARD_TITLE` | `Home Lab Dashboard` | Header and page title. |
+| `ENABLE_PUBLIC_IP` | `true` | Disable to avoid outbound HTTP calls. Accepts `1/0`, `true/false`, `yes/no`, `on/off`. |
+| `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error`. |
+| `COMPOSE_SCAN_PATH` | unset | Comma-separated directories to scan for compose files. |
+| `DOCKER_HOST` | unset | Docker SDK endpoint. Compose sets this to the socket proxy. |
 
-## 4. Configuration
+## Quick Start With Docker Compose
 
-All knobs come from environment variables. See **`.env.example`** for the
-canonical list.
+The checked-in compose file is host-specific in a few places. Before deploying,
+review:
 
-| Variable            | Default         | Purpose                                    |
-| ------------------- | --------------- | ------------------------------------------ |
-| `PORT`              | `3001`          | Internal HTTP port (NPM terminates TLS)    |
-| `POLLING_INTERVAL`  | `15`            | Seconds between snapshot refreshes         |
-| `LOG_LEVEL`         | `info`          | `debug` \| `info` \| `warn` \| `error`     |
-| `COMPOSE_SCAN_PATH` | (unset)         | Comma-separated dirs to walk for compose   |
-| `DASHBOARD_TITLE`   | `Home Lab Dashboard` | Title in the header                   |
-| `ENABLE_PUBLIC_IP`  | `1`             | Resolve external IP via ipify/ifconfig.me  |
-| `DOCKER_HOST`       | (auto)          | Override with `tcp://docker-proxy:2375`    |
+- Published port: `3051:3001`
+- External network: `npm_network`
+- Compose scan mount: `/home/alkiory/projects:/projects:ro`
+- Compose scan path: `COMPOSE_SCAN_PATH=/projects`
 
-The defaults are tuned for an idle homelab Pi: 15 s polling, no public-IP
-calls unless you opt in, no SQLite, no log file.
-
----
-
-## 5. Quick start
+Start the stack:
 
 ```bash
-# 1. Build
 docker compose build
-
-# 2. Start (production-like)
 docker compose up -d
-
-# 3. Add to Nginx Proxy Manager
-#    - Domain:       home.example.com
-#    - Scheme:       http
-#    - Forward:      home-lab-dashboard:3001   (or <host-ip>:3001)
-#    - Cache:        disabled
-#    - Access list:  your IP only (optional)
-#    - SSL:          "Request a new SSL Certificate" (Let's Encrypt)
-
-# 4. Verify
-curl https://home.example.com/healthz    # → "ok"
-```
-
-### Logs
-
-```bash
-docker compose logs -f --tail 200 dashboard
-```
-
-Inside the container, logging uses slog's text handler. Set `LOG_LEVEL=debug`
-to see per-tick snapshots if you need to confirm polling behaviour.
-
----
-
-## 6. Deployment with Nginx Proxy Manager (NPM)
-
-SSL lives at NPM. The dashboard serves plain internal HTTP.
-
-1. Let DNS A-record resolve `home.example.com` to your NPM host.
-2. In the NPM UI → **Hosts → Proxy Hosts → Add Proxy Host**:
-   - **Domain Names:** `home.example.com`
-   - **Scheme:** `http`
-   - **Forward Hostname/IP:** the IP of your Docker host
-   - **Forward Port:** `3001`
-   - **Websockets Support:** *off* (the UI polls HTML partials, not push)
-   - **SSL Tab:** "Request a new SSL Certificate" → enable
-     "Force SSL" + "HTTP/2" + "HSTS"
-3. (Optional) Enable **Access Lists** so only your LAN/WireGuard can hit it.
-4. (Optional) Add BasicAuth if you expose it to guests.
-
-When NPM publishes its container on a custom bridge network, add the bridge
-network to both `npm_default` and `hld-internal` so NPM can resolve
-`home-lab-dashboard`. **The dashboard itself only needs port 3001 exposed
-on its internal Docker network**.
-
----
-
-## 7. Security — Docker access without root equivalents
-
-### Pattern A (recommended): socket proxy sidecar
-
-`telnativa/docker-socket-proxy` is a 4 MB container that exposes the
-Docker socket over TCP after enforcing an explicit allow-list. Only the
-endpoints the dashboard reads are kept open:
-
-```env
-CONTAINERS=1  # /containers/* only
-POST=0
-DELETE=0
-EXEC=0
-EVENTS=0
-```
-
-The dashboard talks to it via `DOCKER_HOST=tcp://docker-proxy:2375`. The
-proxy itself holds the privilege; the app holds nothing.
-
-### Pattern B (advanced): direct mount with read-only
-
-If you need richer data (e.g. you want to expose `docker exec` in some
-future feature), unmount the proxy and add:
-
-```yaml
-volumes:
-  - /var/run/docker.sock:/var/run/docker.sock:ro
-environment:
-  - DOCKER_HOST=unix:///var/run/docker.sock
-```
-
-> Even with `:ro` Docker socket reads are equivalent operations; the
-> socket itself is rw at the host's `docker` group level. **Prefer Pattern A**.
-
-### Pattern C (paranoid): no socket, no containers card
-
-If you don't want Docker access at all, just set `COMPOSE_SCAN_PATH` and
-leave Docker unconfigured. The Containers card will read "Docker is
-unavailable"; the rest still works.
-
-### File permissions
-
-* The container runs as UID `1000` (`hld:hld`). `chown docker:docker` /
-  `chmod 0660 /var/run/docker.sock` keeps everyone outside that group
-  out of Docker entirely — a third defensive layer.
-* Compose files mounted `:ro` can't be modified by the dashboard; the
-  scanner only reads.
-
----
-
-## 8. Optional: SQLite state
-
-We default to stateless. If you'd like a tiny SQLite shim for "pinned
-services" or "favourite partials", mount a volume and add the standard
-`database/sql` driver:
-
-```yaml
-volumes:
-  - dashboard-data:/data
-```
-
-The `dashboard-data` named volume is created by the included compose.
-
----
-
-## 9. Air-gapped deployments
-
-The dashboard has no required external browser dependency. CSS, JavaScript,
-templates, and card partials are embedded into the Go binary and served from
-the same origin as the dashboard. Rebuild the image after frontend changes and
-the binary will contain the updated assets.
-
----
-
-## 10. Resource budget
-
-| Resource               | Idle    | Under 5 % load |
-| ---------------------- | ------- | -------------- |
-| RSS (resident)         | ~12 MB  | ~30 MB         |
-| CPU on a Pi 4 / i3-N305| < 0.5 % | < 1.5 %        |
-| Disk (image)           | 22 MB compressed, ~30 MB unpacked |
-| Mount points           | `/proc` (ro), `/sys` (ro), `/srv` (ro), `dashboard-data:/data` |
-
-The `snapshot.Store` is a single `atomic.Pointer`. After the first tick
-the only allocations are the per-tick collector outputs (a few KB) and
-the rendered HTML for cards (~2 KB each). Card refreshes reuse the same
-server-rendered partial endpoints for all viewers.
-
----
-
-## 11. License
-
-MIT. See `LICENSE` if you maintain one (not committed by default).
-
----
-
-## 12. Troubleshooting / errors
-
-| Symptom                              | Likely cause / fix                                  |
-| ------------------------------------ | --------------------------------------------------- |
-| "Docker is unavailable."             | `DOCKER_HOST` not set or socket-proxy not running; check compose logs |
-| Containers always show `% 0`         | Pre-CPU baseline missing on first tick; will populate by the second poll |
-| Empty "Network" card                 | gopsutil cannot read `/proc/net/dev` — check `/proc` is mounted `:ro` |
-| `0.0 °C` shown                       | No thermal zones on this hardware; the card hides the row entirely |
-| `docker ps` shows `Up ... (unhealthy)` for `home-lab-dashboard` | Verify the healthcheck calls `http://localhost:3001/healthz`. Older containers may still call `/health`; recreate the service after updating compose. |
-| Container unhealthy determinator... | `(<state>)` parsing depends on Docker's Status text format; if Docker changes the format, update `healthFromStatus` |
-
----
-
-## 13. Usage
-
-This project is intended to run as a ready-to-use homelab dashboard behind
-Nginx Proxy Manager or another reverse proxy. The included compose file does
-not publish port `3001` to the host; it attaches the dashboard to the external
-`npm_network` Docker network so the proxy can reach
-`home-lab-dashboard:3001` directly.
-
-### 1. Prepare the Docker network
-
-If your Nginx Proxy Manager network already exists as `npm_network`, keep the
-compose file as-is. Otherwise create it or rename the network in
-`docker-compose.yml` to match your proxy network:
-
-```bash
-docker network create npm_network
-```
-
-### 2. Verify the healthcheck path
-
-The Go server registers:
-
-```text
-/healthz  -> liveness, returns "ok"
-/readyz   -> readiness, returns "ready" after the first polling tick
-```
-
-If `docker ps` shows this state:
-
-```text
-hm-dashboard-dashboard   "/app/dashboard"   Up ... (unhealthy)   3001/tcp   home-lab-dashboard
-```
-
-make sure the dashboard healthcheck in `docker-compose.yml` points to
-`/healthz`:
-
-```yaml
-healthcheck:
-  test: ["CMD", "curl", "-f", "http://localhost:3001/healthz"]
-  interval: 30s
-  timeout: 10s
-  retries: 3
-```
-
-Then recreate the service:
-
-```bash
-docker compose up -d --build --force-recreate dashboard
-```
-
-### 3. Start the dashboard
-
-```bash
-docker compose up -d --build
 docker compose ps
-docker compose logs -f --tail 200 dashboard
+docker compose logs -f --tail 200 home-lab-dashboard
 ```
 
-Expected result:
-
-```text
-home-lab-dashboard   /app/dashboard   Up ... (healthy)   3001/tcp
-```
-
-### 4. Connect through Nginx Proxy Manager
-
-Create a proxy host with these values:
-
-| NPM field | Value |
-| --------- | ----- |
-| Scheme | `http` |
-| Forward Hostname/IP | `home-lab-dashboard` |
-| Forward Port | `3001` |
-| Websockets Support | Off |
-| Cache Assets | Off |
-| SSL | Request a certificate, then enable Force SSL |
-
-This works when NPM and the dashboard are both attached to `npm_network`.
-
-### 5. Verify from inside Docker
+Verify from the Docker host:
 
 ```bash
-docker exec home-lab-dashboard curl -fsS http://127.0.0.1:3001/healthz
-docker exec home-lab-dashboard curl -fsS http://127.0.0.1:3001/readyz
+curl -fsS http://localhost:3051/healthz
+curl -fsS http://localhost:3051/readyz
 ```
 
 Expected responses:
@@ -419,22 +107,207 @@ ok
 ready
 ```
 
-If `/readyz` returns `503 priming`, wait for one polling interval
-(`POLLING_INTERVAL`, currently `30s` in compose) and retry.
+`/readyz` returns `503 priming` until the first polling tick completes.
 
-### 6. Run without a reverse proxy for local testing
+## Local Development
 
-Because the compose file does not publish a host port, add a temporary port
-mapping to the `dashboard` service when you want to test directly from the
-Docker host:
+Use a writable Go cache when the default home cache is unavailable:
 
-```yaml
-ports:
-  - "3001:3001"
+```bash
+GOCACHE=/tmp/hld-go-cache go test ./...
+GOCACHE=/tmp/hld-go-cache go build .
 ```
 
-Then open:
+Run the app directly:
+
+```bash
+PORT=3001 \
+POLLING_INTERVAL=15s \
+COMPOSE_SCAN_PATH=/path/to/stacks \
+ENABLE_PUBLIC_IP=0 \
+go run .
+```
+
+If you want Docker data while running locally, expose Docker through one of:
+
+```bash
+DOCKER_HOST=unix:///var/run/docker.sock
+DOCKER_HOST=tcp://localhost:2375
+```
+
+The dashboard still runs without Docker access. The Containers card will show
+Docker as unavailable while the other cards continue to render.
+
+## Docker Access Model
+
+The default compose stack uses `tecnativa/docker-socket-proxy` as
+`hld-docker-proxy`. The dashboard connects with:
 
 ```text
-http://localhost:3001
+DOCKER_HOST=tcp://hld-docker-proxy:2375
 ```
+
+This keeps the Docker socket out of the dashboard container. The proxy has the
+host socket mounted read-only and exposes only the API areas enabled in
+`docker-compose.yml`.
+
+If you do not want Docker access at all, remove `DOCKER_HOST` and the socket
+proxy dependency. Hardware, network, and service discovery still work.
+
+## Service Discovery
+
+`internal/discovery/scanner.go` walks every `COMPOSE_SCAN_PATH` root to depth
+3 and recognizes:
+
+- `compose.yml`
+- `compose.yaml`
+- `docker-compose.yml`
+- `docker-compose.yaml`
+
+It skips symlinks and extracts service name, image, ports, project name, and
+selected metadata labels. Only labels under `dashboard.*` or `homelab.*` are
+surfaced.
+
+Example:
+
+```yaml
+services:
+  demo:
+    image: nginx:alpine
+    ports:
+      - "8088:80"
+    labels:
+      dashboard.description: "Demo web server"
+      dashboard.url: "https://demo.example.com"
+```
+
+Top-level compose `name:` becomes the project name. If absent, the compose
+file's parent directory is used.
+
+## HTTP Routes
+
+| Route | Purpose |
+| --- | --- |
+| `GET /` | Full dashboard page. |
+| `GET /api/cards/hardware` | Hardware card partial. |
+| `GET /api/cards/network` | Network card partial. |
+| `GET /api/cards/containers` | Containers card partial. |
+| `GET /api/cards/services` | Services card partial. |
+| `GET /healthz` | Liveness check, returns `ok`. |
+| `GET /readyz` | Readiness check, returns `ready` after the first snapshot. |
+| `GET /static/*` | Embedded CSS and JavaScript. |
+
+## Nginx Proxy Manager
+
+The dashboard serves plain HTTP internally. Terminate TLS at Nginx Proxy
+Manager or another reverse proxy.
+
+Suggested NPM values:
+
+| NPM field | Value |
+| --- | --- |
+| Scheme | `http` |
+| Forward Hostname/IP | `home-lab-dashboard` when on the same Docker network, otherwise the Docker host IP |
+| Forward Port | `3001` internally, or `3051` if forwarding to the published host port |
+| Websockets Support | Off |
+| Cache Assets | Off |
+| SSL | Request a certificate, then enable Force SSL |
+
+The included compose file attaches the dashboard to the external
+`npm_network`. Create or rename that network to match your proxy environment.
+
+## Troubleshooting
+
+### Cards stay on "Loading..." or show "Unable to load data"
+
+Check the card endpoints directly:
+
+```bash
+curl -i http://localhost:3051/api/cards/hardware
+curl -i http://localhost:3051/api/cards/network
+curl -i http://localhost:3051/api/cards/containers
+curl -i http://localhost:3051/api/cards/services
+```
+
+Then check logs:
+
+```bash
+docker compose logs --tail 200 home-lab-dashboard
+```
+
+Template render errors usually appear as HTTP 500 and `card render failed`.
+
+### Containers card says Docker is unavailable
+
+Confirm the app has a Docker endpoint and the proxy is running:
+
+```bash
+docker compose ps
+docker compose logs --tail 200 hld-docker-proxy
+docker compose exec home-lab-dashboard sh -c 'echo "$DOCKER_HOST"'
+```
+
+The expected value in the checked-in compose file is:
+
+```text
+DOCKER_HOST=tcp://hld-docker-proxy:2375
+```
+
+### Services card is empty
+
+Check that `COMPOSE_SCAN_PATH` is set, the host directory is mounted into the
+container, compose files are within 3 directory levels of a scan root, and the
+file names match the recognized compose names.
+
+```bash
+docker compose exec home-lab-dashboard sh -c 'echo "$COMPOSE_SCAN_PATH"; find /projects -maxdepth 4 -name compose.yml -o -name compose.yaml -o -name docker-compose.yml -o -name docker-compose.yaml'
+```
+
+### Public IP is missing
+
+`ENABLE_PUBLIC_IP` may be disabled, outbound HTTPS may be blocked, or all
+external IP providers may be unavailable. Disable public IP lookup with:
+
+```text
+ENABLE_PUBLIC_IP=0
+```
+
+### Hardware metrics look incomplete in Docker
+
+The app reads host-like data through these mounts:
+
+```yaml
+volumes:
+  - /proc:/proc:ro
+  - /sys:/sys:ro
+```
+
+Disk visibility depends on the container mount namespace. Mount additional
+host paths read-only if they should appear in the dashboard.
+
+## Validation Status
+
+Current workspace validation:
+
+```bash
+GOCACHE=/tmp/hld-go-cache go test ./...
+```
+
+Result: all packages pass, but the repository currently has no test files.
+
+## Maintainer Notes
+
+See `knowledge.md` for deeper support guidance, known rough edges, and testing
+recommendations.
+
+Known current rough edges:
+
+- There are no automated tests.
+- Some historical notes in older docs may not match the current compose file.
+- Template attributes use `hx-*` names, but the app uses custom vanilla JS
+  polling and does not ship HTMX.
+- Docker restart counts are always zero because `ContainerList` does not
+  include restart count in Docker SDK v25.
+- Public IP lookup performs outbound HTTPS requests unless disabled.
+- The compose file contains host-specific paths and comments for the current
+  deployment environment.
