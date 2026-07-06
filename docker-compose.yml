@@ -16,6 +16,7 @@ services:
   home-lab-dashboard:
     build: .
     restart: unless-stopped
+    privileged: false
     security_opt:
       - apparmor:unconfined
     ports:
