@@ -12,12 +12,12 @@ import (
 
 // Config holds the runtime configuration for the dashboard.
 type Config struct {
-	Port              int           // Internal HTTP port (NPM terminates TLS upstream)
-	PollingInterval   time.Duration // How often the background poller refreshes data
-	ComposeScanPaths  []string      // Directories to scan for compose files
-	DashboardTitle    string        // Title shown in the header
-	EnablePublicIP    bool          // Whether to query an external IP echo service
-	LogLevel          slog.Level    // Slog log level
+	Port             int           // Internal HTTP port (NPM terminates TLS upstream)
+	PollingInterval  time.Duration // How often the background poller refreshes data
+	ComposeScanPaths []string      // Directories to scan for compose files
+	DashboardTitle   string        // Title shown in the header
+	EnablePublicIP   bool          // Whether to query an external IP echo service
+	LogLevel         slog.Level    // Slog log level
 }
 
 // FromEnv reads configuration from environment variables and returns a

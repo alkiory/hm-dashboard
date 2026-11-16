@@ -10,14 +10,31 @@
 <script src="/static/js/app.js" defer></script>
 </head>
 <body>
-<header class="topbar">
+<header class="topbar" role="banner">
   <div class="topbar__left">
-    <span class="brand">⬢ {{.Title}}</span>
+    <span class="brand">
+      {{- define "layout/brandIcon" -}}
+      {{- template "icon/cluster" "ic--brand" "22px" -}}
+      {{- end -}}
+      {{- template "layout/brandIcon" . -}
+      <span class="brand__text">{{.Title}}</span>
+    </span>
     <span class="meta" id="hostname-badge"></span>
   </div>
   <div class="topbar__right">
     <span class="meta" id="last-updated">updated <span id="last-updated-value">priming…</span></span>
-    <button class="btn" id="theme-toggle" type="button" aria-label="Toggle theme">◐</button>
+    <button class="btn btn--icon" id="theme-toggle" type="button" aria-label="Toggle theme" title="Toggle theme">
+      <span class="icon-btn__ic" data-theme-ic="light">
+        {{- define "layout/themeIconLight" -}}
+        {{- template "icon/speed" "ic--theme" "18px" -}}
+        {{- end -}}
+      </span>
+      <span class="icon-btn__ic" data-theme-ic="dark">
+        {{- define "layout/themeIconDark" -}}
+        {{- template "icon/thermometer" "ic--theme" "18px" -}}
+        {{- end -}}
+      </span>
+    </button>
   </div>
 </header>
 
@@ -34,13 +51,27 @@
          hx-swap="innerHTML"
          hx-indicator=".pulse">
       <span class="pulse" aria-hidden="true"></span>
-      <div class="card__placeholder">Loading…</div>
+      <div class="card__placeholder">
+        {{- define "hardware/placeholder" -}}
+        {{- template "icon/cpu" "ic--muted" "20px" -}}
+        {{- end -}}
+        {{- template "hardware/placeholder" . -}
+        <span class="card__placeholder__txt">Loading hardware…</span>
+      </div>
     </div>
   </section>
 
   <section class="card" id="card-network">
     <header class="card__hdr">
-      <h2>Network</h2>
+      <div class="card__hdr__left">
+        <span class="card__hdr__ic">
+          {{- define "network/icon" -}}
+          {{- template "icon/globe" "ic--brand" "22px" -}}
+          {{- end -}}
+          {{- template "network/icon" . -}
+        </span>
+        <h2>Network</h2>
+      </div>
       <span class="card__sub">refresh every {{.PollingSeconds}}s</span>
     </header>
     <div class="card__body" id="network-body"
@@ -49,13 +80,27 @@
          hx-swap="innerHTML"
          hx-indicator=".pulse">
       <span class="pulse" aria-hidden="true"></span>
-      <div class="card__placeholder">Loading…</div>
+      <div class="card__placeholder">
+        {{- define "network/placeholder" -}}
+        {{- template "icon/globe" "ic--muted" "20px" -}}
+        {{- end -}}
+        {{- template "network/placeholder" . -}
+        <span class="card__placeholder__txt">Loading network…</span>
+      </div>
     </div>
   </section>
 
   <section class="card card--wide" id="card-containers">
     <header class="card__hdr">
-      <h2>Containers</h2>
+      <div class="card__hdr__left">
+        <span class="card__hdr__ic">
+          {{- define "containers/icon" -}}
+          {{- template "icon/boxes" "ic--brand" "22px" -}}
+          {{- end -}}
+          {{- template "containers/icon" . -}
+        </span>
+        <h2>Containers</h2>
+      </div>
       <span class="card__sub">refresh every {{.PollingSeconds}}s</span>
     </header>
     <div class="card__body" id="containers-body"
@@ -79,7 +124,42 @@
          hx-swap="innerHTML"
          hx-indicator=".pulse">
       <span class="pulse" aria-hidden="true"></span>
-      <div class="card__placeholder">Loading…</div>
+      <div class="card__placeholder">
+        {{- define "containers/placeholder" -}}
+        {{- template "icon/boxes" "ic--muted" "20px" -}}
+        {{- end -}}
+        {{- template "containers/placeholder" . -}
+        <span class="card__placeholder__txt">Loading containers…</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card card--wide" id="card-services">
+    <header class="card__hdr">
+      <div class="card__hdr__left">
+        <span class="card__hdr__ic">
+          {{- define "services/icon" -}}
+          {{- template "icon/layers" "ic--brand" "22px" -}}
+          {{- end -}}
+          {{- template "services/icon" . -}
+        </span>
+        <h2>Services</h2>
+      </div>
+      <span class="card__sub">refresh every {{.PollingSeconds}}s</span>
+    </header>
+    <div class="card__body" id="services-body"
+         hx-get="/api/cards/services"
+         hx-trigger="load delay:100ms, every {{.PollingSeconds}}s"
+         hx-swap="innerHTML"
+         hx-indicator=".pulse">
+      <span class="pulse" aria-hidden="true"></span>
+      <div class="card__placeholder">
+        {{- define "services/placeholder" -}}
+        {{- template "icon/layers" "ic--muted" "20px" -}}
+        {{- end -}}
+        {{- template "services/placeholder" . -}
+        <span class="card__placeholder__txt">Loading services…</span>
+      </div>
     </div>
   </section>
 

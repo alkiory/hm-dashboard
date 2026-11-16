@@ -15,24 +15,34 @@
   var THEME_KEY = "hld.theme";
   var root = document.documentElement;
 
+  var THEME_ICONS = {
+    light: '<svg class="ic ic--theme" width="18px" height="18px" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M12 3v5M12 16v5M5 12h5M14 12h5M6 6.5c-1.2 1.2-1.2 3.1 0 4.4M18 17.5c1.2-1.2 1.2-3.1 0-4.4M6 17.5c-1.2-1.2-1.2-3.1 0-4.4M18 6.5c1.2 1.2 1.2 3.1 0 4.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.4" fill="var(--icon-fill-a)" stroke="var(--icon-stroke)" stroke-width="1.2"/></svg>',
+    dark: '<svg class="ic ic--theme" width="18px" height="18px" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10" fill="var(--icon-fill-a)" stroke="var(--icon-stroke)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 8v5l3 2" stroke="var(--icon-stroke)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="1.6" fill="var(--accent-2)"/></svg>'
+  };
+
   function applyTheme(t) {
     root.setAttribute("data-theme", t);
     var btn = document.getElementById("theme-toggle");
-    if (btn) btn.textContent = t === "light" ? "☀" : "◐";
+    if (!btn) return;
+    var nextIcon = THEME_ICONS[t] || "";
+    var wrap = btn.querySelector(".icon-btn__ic");
+    if (wrap) {
+      wrap.innerHTML = nextIcon;
+      wrap.hidden = false;
+    }
   }
 
-  // Prefer saved choice; fall back to media query.
-  try {
-    var saved = localStorage.getItem(THEME_KEY);
-    if (saved === "light" || saved === "dark") {
-      applyTheme(saved);
-    } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
-      applyTheme("light");
-    } else {
-      applyTheme("dark");
-    }
-  } catch (e) {
-    applyTheme("dark");
+  function syncThemeButtonIcon() {
+    var btn = document.getElementById("theme-toggle");
+    if (!btn) return;
+    var current = root.getAttribute("data-theme");
+    var showLight = current === "light";
+    var icons = btn.querySelectorAll(".icon-btn__ic");
+    Array.prototype.forEach.call(icons, function (ic) {
+      var target = ic.getAttribute("data-theme-ic");
+      if (!target) return;
+      ic.hidden = (target === "light") ? !showLight : showLight;
+    });
   }
 
   var btn = document.getElementById("theme-toggle");
@@ -42,6 +52,11 @@
       applyTheme(next);
       try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* private mode */ }
     });
+    syncThemeButtonIcon();
+    if (!btn.querySelector(".icon-btn__ic")) {
+      btn.innerHTML = "";
+      btn.appendChild(document.createElement("span")).className = "icon-btn__ic";
+    }
   }
 
   var lastEl = document.getElementById("last-updated-value");
@@ -82,6 +97,23 @@
         el.classList.remove("htmx-request");
       });
   }
+
+  function announceStatus(el, msg) {
+    if (!el || !msg) return;
+    el.textContent = msg;
+    if (window.HTMLElement && el instanceof HTMLElement) {
+      el.setAttribute("aria-live", "polite");
+    }
+  }
+
+  (function initHostBadge() {
+    var hostBadge = document.getElementById("hostname-badge");
+    if (!hostBadge) return;
+    var stored = "";
+    try { stored = localStorage.getItem("hld.hostname"); } catch (e) { /* private mode */ }
+    var msg = stored ? "host: " + stored : "host unknown";
+    announceStatus(hostBadge, msg);
+  })();
 
   function submitContainerAction(form) {
     var target = document.getElementById("containers-body");

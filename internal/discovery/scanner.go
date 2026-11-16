@@ -23,8 +23,8 @@ const MaxScanDepth = 3
 // composeFileNames is the canonical set of filenames we recognise.
 // (Compose V2 ships these alongside `docker-compose.yml`.)
 var composeFileNames = map[string]bool{
-	"compose.yml":     true,
-	"compose.yaml":    true,
+	"compose.yml":         true,
+	"compose.yaml":        true,
 	"docker-compose.yml":  true,
 	"docker-compose.yaml": true,
 }
@@ -131,13 +131,13 @@ type composeFile struct {
 // composeService is the slice of the compose schema we care about.
 // All fields are optional; missing ones render as empty in the UI.
 type composeService struct {
-	Image       string             `yaml:"image"`
-	Build       any                `yaml:"build"` // ignored; we want runtime image
-	Ports       []any              `yaml:"ports"`
-	Labels      map[string]string  `yaml:"labels"`
+	Image           string            `yaml:"image"`
+	Build           any               `yaml:"build"` // ignored; we want runtime image
+	Ports           []any             `yaml:"ports"`
+	Labels          map[string]string `yaml:"labels"`
 	ContainerLabels map[string]string `yaml:"container_labels"`
-	Environment any                `yaml:"environment"` // ignored
-	HealthCheck any                `yaml:"healthcheck"` // ignored
+	Environment     any               `yaml:"environment"` // ignored
+	HealthCheck     any               `yaml:"healthcheck"` // ignored
 }
 
 // parseComposeFile decodes a docker-compose file (single or multi-doc) and

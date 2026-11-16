@@ -1,9 +1,17 @@
-{{/* Network card body */}}
+{{/* Network card body. Renders from snapshot.Network. */}}
 
 <div class="net">
   <div class="net__top">
     <div class="metric">
-      <div class="metric__k">Connectivity</div>
+      <div class="metric__top">
+        <span class="metric__k">Connectivity</span>
+        <span class="metric__ic">
+          {{- define "network/connIcon" -}}
+          {{- template "icon/globe" "ic--soft" "14px" -}}
+          {{- end -}}
+          {{- template "network/connIcon" . -}
+        </span>
+      </div>
       <div class="metric__v">
         {{if .Network.ConnectedIPv4}}
           <span class="dot dot--ok"></span> IPv4 up
@@ -17,32 +25,47 @@
       </div>
     </div>
     <div class="metric">
-      <div class="metric__k">Throughput</div>
-      <div class="metric__v">↓ {{rate .Network.RXBytesPerSec}} · ↑ {{rate .Network.TXBytesPerSec}}</div>
+      <div class="metric__top">
+        <span class="metric__k">Throughput</span>
+        <span class="metric__ic">
+          {{- define "network/tputIcon" -}}
+          {{- template "icon/speed" "ic--soft" "14px" -}}
+          {{- end -}}
+          {{- template "network/tputIcon" . -}
+        </span>
+      </div>
+      <div class="metric__v metric__v--mono">↓ {{rate .Network.RXBytesPerSec}}<span class="muted"> · </span>↑ {{rate .Network.TXBytesPerSec}}</div>
     </div>
   </div>
 
   {{if .Network.Interfaces}}
-  <table class="net__table">
-    <thead>
-      <tr><th>Interface</th><th>IPv4</th><th>Oper</th><th>↓ Rate</th><th>↑ Rate</th></tr>
-    </thead>
-    <tbody>
+  <div class="net__iface">
     {{range .Network.Interfaces}}
-      <tr>
-        <td><code>{{.Name}}</code></td>
-        <td>{{if .IPv4}}{{.IPv4}}{{else}}<span class="muted">—</span>{{end}}</td>
-        <td>
-          {{if eq .OperState "up"}}<span class="dot dot--ok"></span> up
-          {{else if eq .OperState "down"}}<span class="dot dot--bad"></span> down
-          {{else}}<span class="dot dot--warn"></span> {{.OperState}}{{end}}
-        </td>
-        <td>{{rate .RXBytesRate}}</td>
-        <td>{{rate .TXBytesRate}}</td>
-      </tr>
+    <div class="iface">
+      <div class="iface__name">
+        <span class="iface__ic">
+          {{- define "network/ifaceIcon" -}}
+          {{- template "icon/globe" "ic--soft" "13px" -}}
+          {{- end -}}
+          {{- template "network/ifaceIcon" . -}
+        </span>
+        <code>{{.Name}}</code>
+      </div>
+      <div class="iface__meta">
+        <span class="iface__addr">{{if .IPv4}}{{.IPv4}}{{else}}<span class="muted">—</span>{{end}}</span>
+        <span class="iface__state">
+          {{if eq .OperState "up"}}<span class="dot dot--ok"></span>up{{end}}
+          {{if eq .OperState "down"}}<span class="dot dot--bad"></span>down{{end}}
+          {{if and (ne .OperState "up") (ne .OperState "down")}}<span class="dot dot--warn"></span>{{.OperState}}{{end}}
+        </span>
+      </div>
+      <div class="iface__tput">
+        <span class="iface__tput__rx">↓ {{rate .RXBytesRate}}</span>
+        <span class="iface__tput__tx">↑ {{rate .TXBytesRate}}</span>
+      </div>
+    </div>
     {{end}}
-    </tbody>
-  </table>
+  </div>
   {{else}}
   <p class="muted">No interfaces reported.</p>
   {{end}}

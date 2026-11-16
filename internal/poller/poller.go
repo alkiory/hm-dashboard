@@ -66,11 +66,11 @@ func (p *Poller) tick(ctx context.Context) {
 	defer cancel()
 
 	var (
-		wg                          sync.WaitGroup
-		hwOut                       collector.Hardware
-		netOut                      collector.Network
-		contOut                     collector.Container
-		hwErr, netErr, contErr      error
+		wg                     sync.WaitGroup
+		hwOut                  collector.Hardware
+		netOut                 collector.Network
+		contOut                collector.Container
+		hwErr, netErr, contErr error
 	)
 
 	wg.Add(3)

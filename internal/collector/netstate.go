@@ -58,7 +58,7 @@ func (n *NetState) sample(ctx context.Context) rateSample {
 	n.s.mu.Unlock()
 
 	out := rateSample{
-		rates: make(map[string][2]float64, len(counters)),
+		rates:   make(map[string][2]float64, len(counters)),
 		hadData: prev != nil && elapsed > 0,
 	}
 	for _, c := range counters {

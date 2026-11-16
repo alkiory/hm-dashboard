@@ -1,13 +1,24 @@
-{{/* Services card body. URL guard uses the hasPrefix template helper so that
-     arbitrary javascript: or file: URLs (which could be XSS) do not render as
-     <a> elements with a fetchable href. */}}
+{{/* Services card body. Renders from snapshot.Services (grouped).
+     URL guard: only http:/https: URLs render as <a>. */}}
+
+{{- define "services/icon" -}}
+{{- template "icon/layers" "ic--brand" "22px" -}}
+{{- end -}}
 
 <div class="services">
   {{if .Errors}}
-    <details class="services__warn">
-      <summary>{{len .Errors}} scanner warning(s)</summary>
-      <ul>{{range .Errors}}<li><code>{{.}}</code></li>{{end}}</ul>
-    </details>
+    <div class="services__warn">
+      <span class="services__warn__ic">
+        {{- define "services/warnIcon" -}}
+        {{- template "icon/layers" "ic--warn" "15px" -}}
+        {{- end -}}
+        {{- template "services/warnIcon" . -}
+      </span>
+      <details class="services__warn__details">
+        <summary>{{len .Errors}} scanner warning(s)</summary>
+        <ul>{{range .Errors}}<li><code>{{.}}</code></li>{{end}}</ul>
+      </details>
+    </div>
   {{end}}
 
   {{if .Groups}}
@@ -15,28 +26,82 @@
       {{range .Groups}}
       <section class="svc-group">
         <header class="svc-group__hdr">
-          <h3>{{.Name}}</h3>
-          <span class="muted">{{len .Services}} service{{if ne (len .Services) 1}}s{{end}}</span>
+          <span class="svc-group__ic">
+            {{- define "svcGroup/icon" -}}
+            {{- template "icon/layers" "ic--soft" "16px" -}}
+            {{- end -}}
+            {{- template "svcGroup/icon" . -}
+          </span>
+          <h3 class="svc-group__name">{{.Name}}</h3>
+          <span class="svc-group__count muted">{{len .Services}} service{{if ne (len .Services) 1}}s{{end}}</span>
         </header>
         <div class="services__grid">
           {{range .Services}}
           {{$isWeb := or (hasPrefix .URL "https:") (hasPrefix .URL "http:")}}
           {{if and .URL $isWeb}}
-          <a class="svc" href="{{.URL}}" target="_blank" rel="noopener noreferrer">
-            <div class="svc__title">{{.Name}}</div>
-            {{if .Description}}<div class="svc__desc">{{.Description}}</div>{{else}}<div class="svc__desc muted">no description</div>{{end}}
-            <div class="svc__meta">
-              <span class="svc__link">↗ {{.URL}}</span>
-              {{if .Ports}}<span class="svc__ports">📡 {{range $i, $p := .Ports}}{{if gt $i 0}} · {{end}}{{$p}}{{end}}</span>{{end}}
+          <a class="svc svc--link" href="{{.URL}}" target="_blank" rel="noopener noreferrer">
+            <span class="svc__ic">
+              {{- define "svc/iconLinked" -}}
+              {{- template "icon/dashboard" "ic--soft" "22px" -}}
+              {{- end -}}
+              {{- template "svc/iconLinked" . -}
+            </span>
+            <div class="svc__body">
+              <div class="svc__title">{{.Name}}</div>
+              <div class="svc__desc">{{if .Description}}{{.Description}}{{else}}<span class="muted">no description</span>{{end}}</div>
+              <div class="svc__meta">
+                <span class="svc__link">
+                  <span class="svc__link__ic">
+                    {{- define "svc/linkIcon" -}}
+                    {{- template "icon/link" "ic--soft" "12px" -}}
+                    {{- end -}}
+                    {{- template "svc/linkIcon" . -}
+                  </span>
+                  ↗ {{.URL}}
+                </span>
+                {{if .Ports}}<span class="svc__ports">
+                  <span class="svc__ports__ic">
+                    {{- define "svc/portsIcon" -}}
+                    {{- template "icon/link" "ic--soft" "11px" -}}
+                    {{- end -}}
+                    {{- template "svc/portsIcon" . -}
+                  </span>
+                  {{range $i, $p := .Ports}}{{if gt $i 0}} <span class="muted">·</span> {{end}}{{$p}}{{end}}
+                </span>{{end}}
+              </div>
             </div>
           </a>
           {{else}}
           <div class="svc svc--nolink">
-            <div class="svc__title">{{.Name}}</div>
-            {{if .Description}}<div class="svc__desc">{{.Description}}</div>{{else}}<div class="svc__desc muted">no description</div>{{end}}
-            <div class="svc__meta">
-              {{if .URL}}<span class="svc__link svc__link--muted">↗ {{.URL}}</span><span class="muted"> (non-web link, rendered as text)</span>{{end}}
-              {{if .Ports}}<span class="svc__ports">📡 {{range $i, $p := .Ports}}{{if gt $i 0}} · {{end}}{{$p}}{{end}}</span>{{end}}
+            <span class="svc__ic">
+              {{- define "svc/iconStatic" -}}
+              {{- template "icon/layers" "ic--soft" "22px" -}}
+              {{- end -}}
+              {{- template "svc/iconStatic" . -}
+            </span>
+            <div class="svc__body">
+              <div class="svc__title">{{.Name}}</div>
+              <div class="svc__desc">{{if .Description}}{{.Description}}{{else}}<span class="muted">no description</span>{{end}}</div>
+              <div class="svc__meta">
+                {{if .URL}}<span class="svc__link svc__link--muted">
+                  <span class="svc__link__ic">
+                    {{- define "svc/linkMutedIcon" -}}
+                    {{- template "icon/link" "ic--soft" "12px" -}}
+                    {{- end -}}
+                    {{- template "svc/linkMutedIcon" . -}
+                  </span>
+                  ↗ {{.URL}}
+                </span><span class="muted"> (non-web link, rendered as text)</span>{{end}}
+                {{if .Ports}}<span class="svc__ports">
+                  <span class="svc__ports__ic">
+                    {{- define "svc/portsIconMuted" -}}
+                    {{- template "icon/link" "ic--soft" "11px" -}}
+                    {{- end -}}
+                    {{- template "svc/portsIconMuted" . -}
+                  </span>
+                  {{range $i, $p := .Ports}}{{if gt $i 0}} <span class="muted">·</span> {{end}}{{$p}}{{end}}
+                </span>{{end}}
+              </div>
             </div>
           </div>
           {{end}}
@@ -46,6 +111,32 @@
       {{end}}
     </div>
   {{else}}
-    <p class="muted">No services discovered. Check <code>COMPOSE_SCAN_PATH</code>.</p>
+    <div class="services__empty">
+      <span class="services__empty__ic">
+        {{- define "services/emptyIcon" -}}
+        {{- template "icon/blank" "ic--muted" "44px" -}}
+        {{- end -}}
+        {{- template "services/emptyIcon" . -}
+      </span>
+      <h3 class="services__empty__title">No services discovered</h3>
+      <p class="services__empty__body">
+        The dashboard did not find any Compose files to scan, or the Compose
+        files had no services with surfaced metadata.
+      </p>
+      <div class="services__empty__hints">
+        <div>
+          <p class="services__empty__hints__k">Scan path</p>
+          <p class="services__empty__hints__v"><code>COMPOSE_SCAN_PATH</code> must point at a directory containing <code>compose.yml</code> / <code>docker-compose.yml</code> (max depth 3).</p>
+        </div>
+        <div>
+          <p class="services__empty__hints__k">Exposed as a link</p>
+          <p class="services__empty__hints__v">Add <code>dashboard.url</code> (<code>https://&lt;service&gt;</code>) to a service's labels to surface a direct link. Only <code>http:</code> / <code>https:</code> URLs are rendered as links.</p>
+        </div>
+        <div>
+          <p class="services__empty__hints__k">Exposed as text</p>
+          <p class="services__empty__hints__v">Add <code>dashboard.description</code> or <code>dashboard.title</code> to show service metadata even when there is no web URL. Use <code>homelab.*</code> labels too if you prefer that namespace.</p>
+        </div>
+      </div>
+    </div>
   {{end}}
 </div>

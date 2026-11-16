@@ -55,9 +55,9 @@ func FmtUptime(secs uint64) string {
 		return "—"
 	}
 	const (
-		minSec = 60
+		minSec  = 60
 		hourSec = 3600
-		daySec = 86400
+		daySec  = 86400
 	)
 	days := secs / daySec
 	secs %= daySec
