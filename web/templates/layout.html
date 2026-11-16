@@ -13,10 +13,7 @@
 <header class="topbar" role="banner">
   <div class="topbar__left">
     <span class="brand">
-      {{- define "layout/brandIcon" -}}
       {{- template "icon/cluster" "ic--brand" "22px" -}}
-      {{- end -}}
-      {{- template "layout/brandIcon" . -}
       <span class="brand__text">{{.Title}}</span>
     </span>
     <span class="meta" id="hostname-badge"></span>
@@ -25,14 +22,10 @@
     <span class="meta" id="last-updated">updated <span id="last-updated-value">priming…</span></span>
     <button class="btn btn--icon" id="theme-toggle" type="button" aria-label="Toggle theme" title="Toggle theme">
       <span class="icon-btn__ic" data-theme-ic="light">
-        {{- define "layout/themeIconLight" -}}
         {{- template "icon/speed" "ic--theme" "18px" -}}
-        {{- end -}}
       </span>
       <span class="icon-btn__ic" data-theme-ic="dark">
-        {{- define "layout/themeIconDark" -}}
         {{- template "icon/thermometer" "ic--theme" "18px" -}}
-        {{- end -}}
       </span>
     </button>
   </div>
@@ -52,10 +45,7 @@
          hx-indicator=".pulse">
       <span class="pulse" aria-hidden="true"></span>
       <div class="card__placeholder">
-        {{- define "hardware/placeholder" -}}
-        {{- template "icon/cpu" "ic--muted" "20px" -}}
-        {{- end -}}
-        {{- template "hardware/placeholder" . -}
+        {{- template "icon/cpu" "ic--muted" "20px" -}
         <span class="card__placeholder__txt">Loading hardware…</span>
       </div>
     </div>
@@ -65,10 +55,7 @@
     <header class="card__hdr">
       <div class="card__hdr__left">
         <span class="card__hdr__ic">
-          {{- define "network/icon" -}}
-          {{- template "icon/globe" "ic--brand" "22px" -}}
-          {{- end -}}
-          {{- template "network/icon" . -}
+          {{- template "icon/globe" "ic--brand" "22px" -}
         </span>
         <h2>Network</h2>
       </div>
@@ -81,10 +68,7 @@
          hx-indicator=".pulse">
       <span class="pulse" aria-hidden="true"></span>
       <div class="card__placeholder">
-        {{- define "network/placeholder" -}}
-        {{- template "icon/globe" "ic--muted" "20px" -}}
-        {{- end -}}
-        {{- template "network/placeholder" . -}
+        {{- template "icon/globe" "ic--muted" "20px" -}
         <span class="card__placeholder__txt">Loading network…</span>
       </div>
     </div>
@@ -94,10 +78,7 @@
     <header class="card__hdr">
       <div class="card__hdr__left">
         <span class="card__hdr__ic">
-          {{- define "containers/icon" -}}
-          {{- template "icon/boxes" "ic--brand" "22px" -}}
-          {{- end -}}
-          {{- template "containers/icon" . -}
+          {{- template "icon/boxes" "ic--brand" "22px" -}
         </span>
         <h2>Containers</h2>
       </div>
@@ -125,10 +106,7 @@
          hx-indicator=".pulse">
       <span class="pulse" aria-hidden="true"></span>
       <div class="card__placeholder">
-        {{- define "containers/placeholder" -}}
-        {{- template "icon/boxes" "ic--muted" "20px" -}}
-        {{- end -}}
-        {{- template "containers/placeholder" . -}
+        {{- template "icon/boxes" "ic--muted" "20px" -}
         <span class="card__placeholder__txt">Loading containers…</span>
       </div>
     </div>
@@ -138,10 +116,7 @@
     <header class="card__hdr">
       <div class="card__hdr__left">
         <span class="card__hdr__ic">
-          {{- define "services/icon" -}}
-          {{- template "icon/layers" "ic--brand" "22px" -}}
-          {{- end -}}
-          {{- template "services/icon" . -}
+          {{- template "icon/layers" "ic--brand" "22px" -}
         </span>
         <h2>Services</h2>
       </div>
@@ -154,10 +129,7 @@
          hx-indicator=".pulse">
       <span class="pulse" aria-hidden="true"></span>
       <div class="card__placeholder">
-        {{- define "services/placeholder" -}}
-        {{- template "icon/layers" "ic--muted" "20px" -}}
-        {{- end -}}
-        {{- template "services/placeholder" . -}
+        {{- template "icon/layers" "ic--muted" "20px" -}
         <span class="card__placeholder__txt">Loading services…</span>
       </div>
     </div>
