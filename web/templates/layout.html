@@ -55,7 +55,7 @@
     <header class="card__hdr">
       <div class="card__hdr__left">
         <span class="card__hdr__ic">
-          {{- template "icon/globe" "ic--brand" "22px" -}
+          {{- template "icon/globe" "ic--brand" "22px" -}}
         </span>
         <h2>Network</h2>
       </div>
@@ -78,7 +78,7 @@
     <header class="card__hdr">
       <div class="card__hdr__left">
         <span class="card__hdr__ic">
-          {{- template "icon/boxes" "ic--brand" "22px" -}
+          {{- template "icon/boxes" "ic--brand" "22px" -}}
         </span>
         <h2>Containers</h2>
       </div>
@@ -96,27 +96,9 @@
 
   <section class="card card--wide" id="card-services">
     <header class="card__hdr">
-      <h2>Services</h2>
-      <span class="card__sub">refresh every {{.PollingSeconds}}s</span>
-    </header>
-    <div class="card__body" id="services-body"
-         hx-get="/api/cards/services"
-         hx-trigger="load delay:100ms, every {{.PollingSeconds}}s"
-         hx-swap="innerHTML"
-         hx-indicator=".pulse">
-      <span class="pulse" aria-hidden="true"></span>
-      <div class="card__placeholder">
-        {{- template "icon/boxes" "ic--muted" "20px" -}
-        <span class="card__placeholder__txt">Loading containers…</span>
-      </div>
-    </div>
-  </section>
-
-  <section class="card card--wide" id="card-services">
-    <header class="card__hdr">
       <div class="card__hdr__left">
         <span class="card__hdr__ic">
-          {{- template "icon/layers" "ic--brand" "22px" -}
+          {{- template "icon/layers" "ic--brand" "22px" -}}
         </span>
         <h2>Services</h2>
       </div>
