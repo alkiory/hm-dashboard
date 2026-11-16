@@ -3,6 +3,9 @@
 {{- define "hardware/icon" -}}
 {{- template "icon/cpu" "ic--brand" "22px" -}}
 {{- end -}}
+{{- if gt .Hardware.CPUPercent 0 -}}
+{{- template "hardware/icon" . -}}
+{{- end -}}
 
 <div class="hw">
   <div class="hw__icon">
@@ -23,7 +26,7 @@
         </span>
       </div>
       <div class="meter__bar"><span class="meter__fill meter__fill--cpu" style="width: {{.Hardware.CPUPercent}}%"></span></div>
-      <div class="meter__val">{{pct .Hardware.CPUPercent}}<span class="muted"> · {{.Hardware.CPUCores}}c</span></div>
+      <div class="meter__val">{{if gt .Hardware.CPUPercent 0}}{{pct .Hardware.CPUPercent}}{{else}}—{{end}}<span class="muted"> · {{.Hardware.CPUCores}}c</span></div>
     </div>
     <div class="meter">
       <div class="meter__top">
@@ -36,7 +39,7 @@
         </span>
       </div>
       <div class="meter__bar"><span class="meter__fill meter__fill--mem" style="width: {{.Hardware.MemoryPercent}}%"></span></div>
-      <div class="meter__val">{{pct .Hardware.MemoryPercent}}<span class="muted"> · {{mib .Hardware.MemoryUsed}} / {{mib .Hardware.MemoryTotal}}</span></div>
+      <div class="meter__val">{{if gt .Hardware.MemoryPercent 0}}{{pct .Hardware.MemoryPercent}}{{else}}—{{end}}<span class="muted"> · {{mib .Hardware.MemoryUsed}} / {{mib .Hardware.MemoryTotal}}</span></div>
     </div>
   </div>
 

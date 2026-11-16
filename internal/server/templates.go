@@ -59,16 +59,33 @@ func getTemplate(name string) (*template.Template, error) {
 // funcMap exposes helpers to all templates. Keep this minimal — every
 // {{ }} invocation pays a map lookup.
 func funcMap() template.FuncMap {
+	// Tolerate missing numeric values from the collector/snapshot so a dash
+	// rendered from the template does not blow up arithmetic helpers.
 	return template.FuncMap{
 		"pct": func(v float64) string {
-			if v <= 0 {
-				return "0%"
+			if v < 0 {
+				return "—"
 			}
-			return fmt.Sprintf("%.1f%%", v)
+			return fmt.Sprintf("%.0f%%", v)
 		},
-		"mib":    func(n uint64) string { return collector.FmtBytes(n) },
-		"rate":   func(bps float64) string { return collector.FmtRate(bps) },
-		"uptime": func(secs uint64) string { return collector.FmtUptime(secs) },
+		"mib": func(n uint64) string {
+			if n == 0 {
+				return "—"
+			}
+			return collector.FmtBytes(n)
+		},
+		"rate": func(bps float64) string {
+			if bps <= 0 {
+				return "—"
+			}
+			return collector.FmtRate(bps)
+		},
+		"uptime": func(secs uint64) string {
+			if secs == 0 {
+				return "—"
+			}
+			return collector.FmtUptime(secs)
+		},
 		"ago": func(unixNano int64) string {
 			if unixNano == 0 {
 				return "priming…"
@@ -92,11 +109,14 @@ func funcMap() template.FuncMap {
 		},
 		"hostname": func(h string) string {
 			if h == "" {
-				return "host"
+				return "—"
 			}
 			return h
 		},
 		"safeURL": func(s string) template.URL {
+			if s == "" {
+				return template.URL("")
+			}
 			return template.URL(s)
 		},
 	}
