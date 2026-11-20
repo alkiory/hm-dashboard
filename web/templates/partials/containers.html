@@ -4,7 +4,7 @@
      #containers-body — these are preserved below. */}}
 
 {{- define "containers/icon" -}}
-{{- template "icon/boxes" "ic--brand" "22px" -}}
+{{- template "icon/boxes" (icon "ic--brand" "22px") -}}
 {{- end -}}
 
 <div class="containers">
@@ -12,7 +12,7 @@
     <div class="containers__unavail">
       <span class="containers__unavail__ic">
         {{- define "containers/unavailIcon" -}}
-        {{- template "icon/boxes" "ic--warn" "20px" -}}
+        {{- template "icon/boxes" (icon "ic--warn" "20px") -}}
         {{- end -}}
         {{- template "containers/unavailIcon" . -}
       </span>
@@ -28,25 +28,25 @@
     <div class="containers__counts" role="status" aria-label="Container counts">
       <span class="chip chip--ok"><span class="chip__ic">
         {{- define "containers/runningIcon" -}}
-        {{- template "icon/boxes" "ic--soft" "12px" -}}
+        {{- template "icon/boxes" (icon "ic--soft" "12px") -}}
         {{- end -}}
         {{- template "containers/runningIcon" . -}
       </span>{{.Container.Running}} running</span>
       <span class="chip chip--bad"><span class="chip__ic">
         {{- define "containers/stoppedIcon" -}}
-        {{- template "icon/boxes" "ic--soft" "12px" -}}
+        {{- template "icon/boxes" (icon "ic--soft" "12px") -}}
         {{- end -}}
         {{- template "containers/stoppedIcon" . -}
       </span>{{.Container.Stopped}} stopped</span>
       {{if gt .Container.Unhealthy 0}}<span class="chip chip--warn"><span class="chip__ic">
         {{- define "containers/unhealthyIcon" -}}
-        {{- template "icon/boxes" "ic--soft" "12px" -}}
+        {{- template "icon/boxes" (icon "ic--soft" "12px") -}}
         {{- end -}}
         {{- template "containers/unhealthyIcon" . -}
       </span>{{.Container.Unhealthy}} unhealthy</span>{{end}}
       <span class="chip chip--muted"><span class="chip__ic">
         {{- define "containers/totalIcon" -}}
-        {{- template "icon/boxes" "ic--soft" "12px" -}}
+        {{- template "icon/boxes" (icon "ic--soft" "12px") -}}
         {{- end -}}
         {{- template "containers/totalIcon" . -}
       </span>{{.Container.Total}} total</span>
@@ -59,7 +59,7 @@
         <div class="crow__left">
           <span class="crow__ic">
             {{- define "crow/icon" -}}
-            {{- template "icon/boxes" "ic--soft" "15px" -}}
+            {{- template "icon/boxes" (icon "ic--soft" "15px") -}}
             {{- end -}}
             {{- template "crow/icon" . -}
           </span>
@@ -91,13 +91,13 @@
             <div class="crow__metrics">
               <span class="crow__stat"><span class="crow__stat__ic">
                 {{- define "crow/cpuIcon" -}}
-                {{- template "icon/cpu" "ic--soft" "11px" -}}
+                {{- template "icon/cpu" (icon "ic--soft" "11px") -}}
                 {{- end -}}
                 {{- template "crow/cpuIcon" . -}
               </span>CPU <strong>{{pct .CPUPercent}}</strong></span>
               <span class="crow__stat"><span class="crow__stat__ic">
                 {{- define "crow/memIcon" -}}
-                {{- template "icon/swap" "ic--soft" "11px" -}}
+                {{- template "icon/swap" (icon "ic--soft" "11px") -}}
                 {{- end -}}
                 {{- template "crow/memIcon" . -}
               </span>MEM <strong>{{mib .MemoryUsed}}</strong>{{if gt .MemoryLimit 0}}<span class="muted"> / {{mib .MemoryLimit}}</span>{{end}}</span>
@@ -106,7 +106,7 @@
           {{if gt .RestartCount 0}}
             <span class="crow__stat crow__stat--mono" title="Restart count"><span class="crow__stat__ic">
               {{- define "crow/restartIcon" -}}
-              {{- template "icon/boxes" "ic--soft" "11px" -}}
+              {{- template "icon/boxes" (icon "ic--soft" "11px") -}}
               {{- end -}}
               {{- template "crow/restartIcon" . -}
             </span>↻ {{.RestartCount}}</span>
@@ -114,7 +114,7 @@
           <details class="container-detail">
             <summary class="btn btn--small btn--icon" type="button" aria-label="Container details">
               {{- define "containers/detailIcon" -}}
-              {{- template "icon/dashboard" "ic--soft" "13px" -}}
+              {{- template "icon/dashboard" (icon "ic--soft" "13px") -}}
               {{- end -}}
               {{- template "containers/detailIcon" . -}
               Details
@@ -145,7 +145,7 @@
                   <form data-container-action method="post" action="/api/containers/{{.FullID}}/start"><button class="btn btn--small btn--icon" type="submit" aria-label="Start container">
                     <span class="btn__ic">
                       {{- define "containers/startIcon" -}}
-                      {{- template "icon/boxes" "ic--soft" "12px" -}}
+                      {{- template "icon/boxes" (icon "ic--soft" "12px") -}}
                       {{- end -}}
                       {{- template "containers/startIcon" . -}
                     </span>
@@ -156,7 +156,7 @@
                   <form data-container-action method="post" action="/api/containers/{{.FullID}}/restart"><button class="btn btn--small btn--icon" type="submit" aria-label="Restart container">
                     <span class="btn__ic">
                       {{- define "containers/restartActionIcon" -}}
-                      {{- template "icon/boxes" "ic--soft" "12px" -}}
+                      {{- template "icon/boxes" (icon "ic--soft" "12px") -}}
                       {{- end -}}
                       {{- template "containers/restartActionIcon" . -}
                     </span>
@@ -167,7 +167,7 @@
                   <form data-container-action method="post" action="/api/containers/{{.FullID}}/stop"><button class="btn btn--small btn--icon btn--danger" type="submit" aria-label="Stop container">
                     <span class="btn__ic">
                       {{- define "containers/stopIcon" -}}
-                      {{- template "icon/boxes" "ic--soft" "12px" -}}
+                      {{- template "icon/boxes" (icon "ic--soft" "12px") -}}
                       {{- end -}}
                       {{- template "containers/stopIcon" . -}
                     </span>
@@ -185,7 +185,7 @@
       <div class="containers__empty">
         <span class="containers__empty__ic">
           {{- define "containers/emptyIcon" -}}
-          {{- template "icon/blank" "ic--muted" "30px" -}}
+          {{- template "icon/blank" (icon "ic--muted" "30px") -}}
           {{- end -}}
           {{- template "containers/emptyIcon" . -}
         </span>

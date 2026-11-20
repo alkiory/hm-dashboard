@@ -7,7 +7,7 @@
         <span class="metric__k">Connectivity</span>
         <span class="metric__ic">
           {{- define "network/connIcon" -}}
-          {{- template "icon/globe" "ic--soft" "14px" -}}
+          {{- template "icon/globe" (icon "ic--soft" "14px") -}}
           {{- end -}}
           {{- template "network/connIcon" . -}
         </span>
@@ -29,7 +29,7 @@
         <span class="metric__k">Throughput</span>
         <span class="metric__ic">
           {{- define "network/tputIcon" -}}
-          {{- template "icon/speed" "ic--soft" "14px" -}}
+          {{- template "icon/speed" (icon "ic--soft" "14px") -}}
           {{- end -}}
           {{- template "network/tputIcon" . -}
         </span>
@@ -45,7 +45,7 @@
       <div class="iface__name">
         <span class="iface__ic">
           {{- define "network/ifaceIcon" -}}
-          {{- template "icon/globe" "ic--soft" "13px" -}}
+          {{- template "icon/globe" (icon "ic--soft" "13px") -}}
           {{- end -}}
           {{- template "network/ifaceIcon" . -}
         </span>

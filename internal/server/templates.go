@@ -19,6 +19,13 @@ type serviceGroup struct {
 	Services []discovery.Service
 }
 
+// iconArgs is the data struct passed to icon sub-templates.
+// Icon templates access .Class and .Size, e.g. `{{.Class}}` `{{.Size}}`.
+type iconArgs struct {
+	Class string
+	Size  string
+}
+
 // TemplatesFS holds the embedded web/ tree. Set by main.go so this
 // package has no embed.FS dependency.
 var TemplatesFS fs.FS
@@ -34,6 +41,7 @@ var (
 
 // getTemplate returns the parsed template for the named card or page.
 // Names match the filenames under web/templates without the extension.
+// icons.html is always parsed alongside so {{template "icon/..."}} calls work.
 func getTemplate(name string) (*template.Template, error) {
 	templateCacheMu.Lock()
 	defer templateCacheMu.Unlock()
@@ -48,9 +56,16 @@ func getTemplate(name string) (*template.Template, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read template %s: %w", name, err)
 	}
+	iconsSrc, err := fs.ReadFile(TemplatesFS, "web/templates/partials/icons.html")
+	if err != nil {
+		return nil, fmt.Errorf("read icons template: %w", err)
+	}
 	t, err := template.New(name).Funcs(funcMap()).Parse(string(src))
 	if err != nil {
 		return nil, fmt.Errorf("parse %s: %w", name, err)
+	}
+	if _, err = t.Parse(string(iconsSrc)); err != nil {
+		return nil, fmt.Errorf("parse icons: %w", err)
 	}
 	templateCache[name] = t
 	return t, nil
@@ -118,6 +133,11 @@ func funcMap() template.FuncMap {
 				return template.URL("")
 			}
 			return template.URL(s)
+		},
+		// icon builds the data struct expected by icon sub-templates.
+		// Usage in templates: {{template "icon/cpu" (icon "ic--brand" "22px")}}
+		"icon": func(class, size string) iconArgs {
+			return iconArgs{Class: class, Size: size}
 		},
 	}
 }

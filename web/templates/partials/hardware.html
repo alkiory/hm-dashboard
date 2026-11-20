@@ -1,7 +1,7 @@
 {{/* Hardware card body. Renders from snapshot.Hardware. */}}
 
 {{- define "hardware/icon" -}}
-{{- template "icon/cpu" "ic--brand" "22px" -}}
+{{- template "icon/cpu" (icon "ic--brand" "22px") -}}
 {{- end -}}
 {{- if gt .Hardware.CPUPercent 0 -}}
 {{- template "hardware/icon" . -}}
@@ -10,7 +10,7 @@
 <div class="hw">
   <div class="hw__icon">
     {{- define "hardware/iconInline" -}}
-    {{- template "icon/cpu" "ic--soft" "22px" -}}
+    {{- template "icon/cpu" (icon "ic--soft" "22px") -}}
     {{- end -}}
     {{- template "hardware/iconInline" . -}
   </div>
@@ -20,7 +20,7 @@
         <span class="meter__label">CPU</span>
         <span class="meter__ic">
           {{- define "hardware/cpuIcon" -}}
-          {{- template "icon/cpu" "ic--soft" "14px" -}}
+          {{- template "icon/cpu" (icon "ic--soft" "14px") -}}
           {{- end -}}
           {{- template "hardware/cpuIcon" . -}
         </span>
@@ -33,7 +33,7 @@
         <span class="meter__label">Memory</span>
         <span class="meter__ic">
           {{- define "hardware/memIcon" -}}
-          {{- template "icon/swap" "ic--soft" "14px" -}}
+          {{- template "icon/swap" (icon "ic--soft" "14px") -}}
           {{- end -}}
           {{- template "hardware/memIcon" . -}
         </span>
@@ -50,7 +50,7 @@
         <span class="metric__k">Temperature</span>
         <span class="metric__ic">
           {{- define "hardware/tempIcon" -}}
-          {{- template "icon/thermometer" "ic--soft" "15px" -}}
+          {{- template "icon/thermometer" (icon "ic--soft" "15px") -}}
           {{- end -}}
           {{- template "hardware/tempIcon" . -}
         </span>
@@ -70,7 +70,7 @@
         <span class="metric__k">OS</span>
         <span class="metric__ic">
           {{- define "hardware/osIcon" -}}
-          {{- template "icon/cluster" "ic--soft" "14px" -}}
+          {{- template "icon/cluster" (icon "ic--soft" "14px") -}}
           {{- end -}}
           {{- template "hardware/osIcon" . -}
         </span>
@@ -82,7 +82,7 @@
         <span class="metric__k">Uptime</span>
         <span class="metric__ic">
           {{- define "hardware/uptimeIcon" -}}
-          {{- template "icon/uptime" "ic--soft" "14px" -}}
+          {{- template "icon/uptime" (icon "ic--soft" "14px") -}}
           {{- end -}}
           {{- template "hardware/uptimeIcon" . -}
         </span>
@@ -94,7 +94,7 @@
         <span class="metric__k">Swap</span>
         <span class="metric__ic">
           {{- define "hardware/swapIcon" -}}
-          {{- template "icon/swap" "ic--soft" "14px" -}}
+          {{- template "icon/swap" (icon "ic--soft" "14px") -}}
           {{- end -}}
           {{- template "hardware/swapIcon" . -}
         </span>
@@ -107,7 +107,7 @@
   <h3 class="hw__h">
     <span class="hw__h__ic">
       {{- define "hardware/diskIcon" -}}
-      {{- template "icon/disk" "ic--muted" "15px" -}}
+      {{- template "icon/disk" (icon "ic--muted" "15px") -}}
       {{- end -}}
       {{- template "hardware/diskIcon" . -}
     </span>
@@ -121,7 +121,7 @@
         <span class="meter__meta muted">{{.FSType}}</span>
         <span class="meter__ic">
           {{- define "hardware/diskRowIcon" -}}
-          {{- template "icon/disk" "ic--soft" "13px" -}}
+          {{- template "icon/disk" (icon "ic--soft" "13px") -}}
           {{- end -}}
           {{- template "hardware/diskRowIcon" . -}
         </span>

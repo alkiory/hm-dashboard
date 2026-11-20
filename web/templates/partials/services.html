@@ -2,7 +2,7 @@
      URL guard: only http:/https: URLs render as <a>. */}}
 
 {{- define "services/icon" -}}
-{{- template "icon/layers" "ic--brand" "22px" -}}
+{{- template "icon/layers" (icon "ic--brand" "22px") -}}
 {{- end -}}
 
 <div class="services">
@@ -10,7 +10,7 @@
     <div class="services__warn">
       <span class="services__warn__ic">
         {{- define "services/warnIcon" -}}
-        {{- template "icon/layers" "ic--warn" "15px" -}}
+        {{- template "icon/layers" (icon "ic--warn" "15px") -}}
         {{- end -}}
         {{- template "services/warnIcon" . -}
       </span>
@@ -28,7 +28,7 @@
         <header class="svc-group__hdr">
           <span class="svc-group__ic">
             {{- define "svcGroup/icon" -}}
-            {{- template "icon/layers" "ic--soft" "16px" -}}
+            {{- template "icon/layers" (icon "ic--soft" "16px") -}}
             {{- end -}}
             {{- template "svcGroup/icon" . -}
           </span>
@@ -42,7 +42,7 @@
           <a class="svc svc--link" href="{{.URL}}" target="_blank" rel="noopener noreferrer">
             <span class="svc__ic">
               {{- define "svc/iconLinked" -}}
-              {{- template "icon/dashboard" "ic--soft" "22px" -}}
+              {{- template "icon/dashboard" (icon "ic--soft" "22px") -}}
               {{- end -}}
               {{- template "svc/iconLinked" . -}
             </span>
@@ -53,7 +53,7 @@
                 <span class="svc__link">
                   <span class="svc__link__ic">
                     {{- define "svc/linkIcon" -}}
-                    {{- template "icon/link" "ic--soft" "12px" -}}
+                    {{- template "icon/link" (icon "ic--soft" "12px") -}}
                     {{- end -}}
                     {{- template "svc/linkIcon" . -}
                   </span>
@@ -62,7 +62,7 @@
                 {{if .Ports}}<span class="svc__ports">
                   <span class="svc__ports__ic">
                     {{- define "svc/portsIcon" -}}
-                    {{- template "icon/link" "ic--soft" "11px" -}}
+                    {{- template "icon/link" (icon "ic--soft" "11px") -}}
                     {{- end -}}
                     {{- template "svc/portsIcon" . -}
                   </span>
@@ -75,7 +75,7 @@
           <div class="svc svc--nolink">
             <span class="svc__ic">
               {{- define "svc/iconStatic" -}}
-              {{- template "icon/layers" "ic--soft" "22px" -}}
+              {{- template "icon/layers" (icon "ic--soft" "22px") -}}
               {{- end -}}
               {{- template "svc/iconStatic" . -}
             </span>
@@ -86,7 +86,7 @@
                 {{if .URL}}<span class="svc__link svc__link--muted">
                   <span class="svc__link__ic">
                     {{- define "svc/linkMutedIcon" -}}
-                    {{- template "icon/link" "ic--soft" "12px" -}}
+                    {{- template "icon/link" (icon "ic--soft" "12px") -}}
                     {{- end -}}
                     {{- template "svc/linkMutedIcon" . -}
                   </span>
@@ -95,7 +95,7 @@
                 {{if .Ports}}<span class="svc__ports">
                   <span class="svc__ports__ic">
                     {{- define "svc/portsIconMuted" -}}
-                    {{- template "icon/link" "ic--soft" "11px" -}}
+                    {{- template "icon/link" (icon "ic--soft" "11px") -}}
                     {{- end -}}
                     {{- template "svc/portsIconMuted" . -}
                   </span>
@@ -114,7 +114,7 @@
     <div class="services__empty">
       <span class="services__empty__ic">
         {{- define "services/emptyIcon" -}}
-        {{- template "icon/blank" "ic--muted" "44px" -}}
+        {{- template "icon/blank" (icon "ic--muted" "44px") -}}
         {{- end -}}
         {{- template "services/emptyIcon" . -}
       </span>
