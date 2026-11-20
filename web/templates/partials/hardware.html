@@ -1,45 +1,29 @@
 {{/* Hardware card body. Renders from snapshot.Hardware. */}}
 
-{{- define "hardware/icon" -}}
-{{- template "icon/cpu" (icon "ic--brand" "22px") -}}
-{{- end -}}
-{{- if gt .Hardware.CPUPercent 0 -}}
-{{- template "hardware/icon" . -}}
-{{- end -}}
-
 <div class="hw">
   <div class="hw__icon">
-    {{- define "hardware/iconInline" -}}
-    {{- template "icon/cpu" (icon "ic--soft" "22px") -}}
-    {{- end -}}
-    {{- template "hardware/iconInline" . -}
+{{- template "icon/cpu" (icon "ic--soft" "22px") -}}
   </div>
   <div class="hw__row">
     <div class="meter">
       <div class="meter__top">
         <span class="meter__label">CPU</span>
         <span class="meter__ic">
-          {{- define "hardware/cpuIcon" -}}
-          {{- template "icon/cpu" (icon "ic--soft" "14px") -}}
-          {{- end -}}
-          {{- template "hardware/cpuIcon" . -}
+{{- template "icon/cpu" (icon "ic--soft" "14px") -}}
         </span>
       </div>
       <div class="meter__bar"><span class="meter__fill meter__fill--cpu" style="width: {{.Hardware.CPUPercent}}%"></span></div>
-      <div class="meter__val">{{if gt .Hardware.CPUPercent 0}}{{pct .Hardware.CPUPercent}}{{else}}—{{end}}<span class="muted"> · {{.Hardware.CPUCores}}c</span></div>
+      <div class="meter__val">{{if gt0 .Hardware.CPUPercent}}{{pct .Hardware.CPUPercent}}{{else}}—{{end}}<span class="muted"> · {{.Hardware.CPUCores}}c</span></div>
     </div>
     <div class="meter">
       <div class="meter__top">
         <span class="meter__label">Memory</span>
         <span class="meter__ic">
-          {{- define "hardware/memIcon" -}}
-          {{- template "icon/swap" (icon "ic--soft" "14px") -}}
-          {{- end -}}
-          {{- template "hardware/memIcon" . -}
+{{- template "icon/swap" (icon "ic--soft" "14px") -}}
         </span>
       </div>
       <div class="meter__bar"><span class="meter__fill meter__fill--mem" style="width: {{.Hardware.MemoryPercent}}%"></span></div>
-      <div class="meter__val">{{if gt .Hardware.MemoryPercent 0}}{{pct .Hardware.MemoryPercent}}{{else}}—{{end}}<span class="muted"> · {{mib .Hardware.MemoryUsed}} / {{mib .Hardware.MemoryTotal}}</span></div>
+      <div class="meter__val">{{if gt0 .Hardware.MemoryPercent}}{{pct .Hardware.MemoryPercent}}{{else}}—{{end}}<span class="muted"> · {{mib .Hardware.MemoryUsed}} / {{mib .Hardware.MemoryTotal}}</span></div>
     </div>
   </div>
 
@@ -49,10 +33,7 @@
       <div class="metric__top">
         <span class="metric__k">Temperature</span>
         <span class="metric__ic">
-          {{- define "hardware/tempIcon" -}}
-          {{- template "icon/thermometer" (icon "ic--soft" "15px") -}}
-          {{- end -}}
-          {{- template "hardware/tempIcon" . -}
+{{- template "icon/thermometer" (icon "ic--soft" "15px") -}}
         </span>
       </div>
       <div class="metric__v">{{printf "%.1f" .Hardware.TemperatureC}}°C</div>
@@ -69,10 +50,7 @@
       <div class="metric__top">
         <span class="metric__k">OS</span>
         <span class="metric__ic">
-          {{- define "hardware/osIcon" -}}
-          {{- template "icon/cluster" (icon "ic--soft" "14px") -}}
-          {{- end -}}
-          {{- template "hardware/osIcon" . -}
+{{- template "icon/cluster" (icon "ic--soft" "14px") -}}
         </span>
       </div>
       <div class="metric__v muted">{{.Hardware.OS}}</div>
@@ -81,10 +59,7 @@
       <div class="metric__top">
         <span class="metric__k">Uptime</span>
         <span class="metric__ic">
-          {{- define "hardware/uptimeIcon" -}}
-          {{- template "icon/uptime" (icon "ic--soft" "14px") -}}
-          {{- end -}}
-          {{- template "hardware/uptimeIcon" . -}
+{{- template "icon/uptime" (icon "ic--soft" "14px") -}}
         </span>
       </div>
       <div class="metric__v">{{uptime .Hardware.UptimeSec}}</div>
@@ -93,10 +68,7 @@
       <div class="metric__top">
         <span class="metric__k">Swap</span>
         <span class="metric__ic">
-          {{- define "hardware/swapIcon" -}}
-          {{- template "icon/swap" (icon "ic--soft" "14px") -}}
-          {{- end -}}
-          {{- template "hardware/swapIcon" . -}
+{{- template "icon/swap" (icon "ic--soft" "14px") -}}
         </span>
       </div>
       <div class="metric__v">{{mib .Hardware.SwapUsed}}<span class="muted"> / {{mib .Hardware.SwapTotal}}</span></div>
@@ -106,10 +78,7 @@
   {{if .Hardware.Disks}}
   <h3 class="hw__h">
     <span class="hw__h__ic">
-      {{- define "hardware/diskIcon" -}}
-      {{- template "icon/disk" (icon "ic--muted" "15px") -}}
-      {{- end -}}
-      {{- template "hardware/diskIcon" . -}
+{{- template "icon/disk" (icon "ic--muted" "15px") -}}
     </span>
     Disks
   </h3>
@@ -120,10 +89,7 @@
         <span class="meter__label">{{.Path}}</span>
         <span class="meter__meta muted">{{.FSType}}</span>
         <span class="meter__ic">
-          {{- define "hardware/diskRowIcon" -}}
-          {{- template "icon/disk" (icon "ic--soft" "13px") -}}
-          {{- end -}}
-          {{- template "hardware/diskRowIcon" . -}
+{{- template "icon/disk" (icon "ic--soft" "13px") -}}
         </span>
       </div>
       <div class="meter__bar"><span class="meter__fill meter__fill--disk" style="width: {{.Percent}}%"></span></div>

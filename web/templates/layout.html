@@ -22,10 +22,10 @@
     <span class="meta" id="last-updated">updated <span id="last-updated-value">priming…</span></span>
     <button class="btn btn--icon" id="theme-toggle" type="button" aria-label="Toggle theme" title="Toggle theme">
       <span class="icon-btn__ic" data-theme-ic="light">
-        {{- template "icon/speed" (icon "ic--theme" "18px") -}}
+        {{- template "icon/sun" (icon "ic--theme" "18px") -}}
       </span>
       <span class="icon-btn__ic" data-theme-ic="dark">
-        {{- template "icon/thermometer" (icon "ic--theme" "18px") -}}
+        {{- template "icon/moon" (icon "ic--theme" "18px") -}}
       </span>
     </button>
   </div>
@@ -35,7 +35,12 @@
 
   <section class="card" id="card-hardware">
     <header class="card__hdr">
-      <h2>Hardware</h2>
+      <div class="card__hdr__left">
+        <span class="card__hdr__ic">
+          {{- template "icon/cpu" (icon "ic--brand" "22px") -}}
+        </span>
+        <h2>Hardware</h2>
+      </div>
       <span class="card__sub">refresh every {{.PollingSeconds}}s</span>
     </header>
     <div class="card__body" id="hardware-body"

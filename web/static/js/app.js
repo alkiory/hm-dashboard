@@ -16,8 +16,8 @@
   var root = document.documentElement;
 
   var THEME_ICONS = {
-    light: '<svg class="ic ic--theme" width="18px" height="18px" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M12 3v5M12 16v5M5 12h5M14 12h5M6 6.5c-1.2 1.2-1.2 3.1 0 4.4M18 17.5c1.2-1.2 1.2-3.1 0-4.4M6 17.5c-1.2-1.2-1.2-3.1 0-4.4M18 6.5c1.2 1.2 1.2 3.1 0 4.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.4" fill="var(--icon-fill-a)" stroke="var(--icon-stroke)" stroke-width="1.2"/></svg>',
-    dark: '<svg class="ic ic--theme" width="18px" height="18px" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10" fill="var(--icon-fill-a)" stroke="var(--icon-stroke)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 8v5l3 2" stroke="var(--icon-stroke)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="1.6" fill="var(--accent-2)"/></svg>'
+    light: '<svg class="ic ic--theme" width="18px" height="18px" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4.5" fill="#f59e0b"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="#f59e0b" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    dark: '<svg class="ic ic--theme" width="18px" height="18px" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M20.5 13.8A8.5 8.5 0 0 1 10.2 3.5 9 9 0 1 0 20.5 13.8z" fill="#8b5cf6" stroke="#c084fc" stroke-width="1.2" stroke-linejoin="round"/></svg>'
   };
 
   function applyTheme(t) {
@@ -70,12 +70,49 @@
     return match ? Number(match[1]) * 1000 : 15000;
   }
 
+  function isUserInteracting(el) {
+    if (!el) return false;
+    // Don't refresh while user is hovering over or focusing inside an open details panel or form
+    return Boolean(el.querySelector("details[open]:hover, details[open]:focus-within, form:hover, form:focus-within"));
+  }
+
+  function saveOpenDetails(el) {
+    var openIds = [];
+    var openList = el.querySelectorAll("details[open]");
+    for (var i = 0; i < openList.length; i++) {
+      var d = openList[i];
+      var id = d.getAttribute("data-container-id") || d.getAttribute("data-id") || d.className;
+      if (id) openIds.push(id);
+    }
+    return openIds;
+  }
+
+  function restoreOpenDetails(el, openIds) {
+    if (!openIds || !openIds.length) return;
+    for (var i = 0; i < openIds.length; i++) {
+      var id = openIds[i];
+      var target = el.querySelector('details[data-container-id="' + id + '"]') ||
+                   el.querySelector('details[data-id="' + id + '"]') ||
+                   (id ? el.querySelector('details.' + id.split(' ')[0]) : null);
+      if (target) {
+        target.open = true;
+      }
+    }
+  }
+
   function loadCard(el) {
     var url = el.getAttribute("hx-get");
     if (!url || el.dataset.loading === "1") return;
 
+    // If card was already primed and user is actively interacting, defer refresh
+    if (el.dataset.ready === "1" && isUserInteracting(el)) {
+      return;
+    }
+
     el.dataset.loading = "1";
     el.classList.add("htmx-request");
+
+    var openIds = saveOpenDetails(el);
 
     fetch(url, {
       headers: { "X-Requested-With": "fetch" },
@@ -87,6 +124,8 @@
       })
       .then(function (html) {
         el.innerHTML = html;
+        restoreOpenDetails(el, openIds);
+        el.dataset.ready = "1";
         markUpdated();
       })
       .catch(function () {
@@ -122,6 +161,15 @@
     form.dataset.loading = "1";
     target.classList.add("htmx-request");
 
+    var openIds = saveOpenDetails(target);
+    var parentDetails = form.closest("details");
+    if (parentDetails) {
+      var pId = parentDetails.getAttribute("data-container-id");
+      if (pId && openIds.indexOf(pId) === -1) {
+        openIds.push(pId);
+      }
+    }
+
     fetch(form.action, {
       method: "POST",
       headers: { "X-Requested-With": "fetch" },
@@ -133,6 +181,8 @@
       })
       .then(function (html) {
         target.innerHTML = html;
+        restoreOpenDetails(target, openIds);
+        target.dataset.ready = "1";
         markUpdated();
       })
       .catch(function () {

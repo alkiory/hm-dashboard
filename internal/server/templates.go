@@ -52,20 +52,22 @@ func getTemplate(name string) (*template.Template, error) {
 		return nil, fmt.Errorf("templates not embedded")
 	}
 	pattern := "web/templates/" + name + ".html"
-	src, err := fs.ReadFile(TemplatesFS, pattern)
-	if err != nil {
-		return nil, fmt.Errorf("read template %s: %w", name, err)
-	}
 	iconsSrc, err := fs.ReadFile(TemplatesFS, "web/templates/partials/icons.html")
 	if err != nil {
 		return nil, fmt.Errorf("read icons template: %w", err)
 	}
-	t, err := template.New(name).Funcs(funcMap()).Parse(string(src))
+	src, err := fs.ReadFile(TemplatesFS, pattern)
 	if err != nil {
-		return nil, fmt.Errorf("parse %s: %w", name, err)
+		return nil, fmt.Errorf("read template %s: %w", name, err)
 	}
-	if _, err = t.Parse(string(iconsSrc)); err != nil {
+	// Parse icons first so all {{define "icon/..."}} are registered,
+	// then parse the target template which may reference them.
+	t, err := template.New(name).Funcs(funcMap()).Parse(string(iconsSrc))
+	if err != nil {
 		return nil, fmt.Errorf("parse icons: %w", err)
+	}
+	if _, err = t.Parse(string(src)); err != nil {
+		return nil, fmt.Errorf("parse %s: %w", name, err)
 	}
 	templateCache[name] = t
 	return t, nil
@@ -133,6 +135,9 @@ func funcMap() template.FuncMap {
 				return template.URL("")
 			}
 			return template.URL(s)
+		},
+		"gt0": func(v float64) bool {
+			return v > 0
 		},
 		// icon builds the data struct expected by icon sub-templates.
 		// Usage in templates: {{template "icon/cpu" (icon "ic--brand" "22px")}}

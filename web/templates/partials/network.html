@@ -6,10 +6,7 @@
       <div class="metric__top">
         <span class="metric__k">Connectivity</span>
         <span class="metric__ic">
-          {{- define "network/connIcon" -}}
-          {{- template "icon/globe" (icon "ic--soft" "14px") -}}
-          {{- end -}}
-          {{- template "network/connIcon" . -}
+{{- template "icon/globe" (icon "ic--soft" "14px") -}}
         </span>
       </div>
       <div class="metric__v">
@@ -28,10 +25,7 @@
       <div class="metric__top">
         <span class="metric__k">Throughput</span>
         <span class="metric__ic">
-          {{- define "network/tputIcon" -}}
-          {{- template "icon/speed" (icon "ic--soft" "14px") -}}
-          {{- end -}}
-          {{- template "network/tputIcon" . -}
+{{- template "icon/speed" (icon "ic--soft" "14px") -}}
         </span>
       </div>
       <div class="metric__v metric__v--mono">↓ {{rate .Network.RXBytesPerSec}}<span class="muted"> · </span>↑ {{rate .Network.TXBytesPerSec}}</div>
@@ -44,10 +38,7 @@
     <div class="iface">
       <div class="iface__name">
         <span class="iface__ic">
-          {{- define "network/ifaceIcon" -}}
-          {{- template "icon/globe" (icon "ic--soft" "13px") -}}
-          {{- end -}}
-          {{- template "network/ifaceIcon" . -}
+{{- template "icon/globe" (icon "ic--soft" "13px") -}}
         </span>
         <code>{{.Name}}</code>
       </div>
